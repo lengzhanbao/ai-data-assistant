@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-data-assistant"
+version = "0.1.0"
+description = "Upload Excel/CSV, ask in plain Chinese, get Pandas analysis + charts via a safe sandbox"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "your-github-username" }]
+keywords = ["data-analysis", "llm", "ai", "pandas", "sql", "chatcsv"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "flask>=3.0",
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "openpyxl>=3.1",
+    "matplotlib>=3.7",
+    "requests>=2.31",
+]
+
+[project.scripts]
+ai-data-assistant = "app:main"
+
+[tool.setuptools]
+py-modules = ["app", "analyzer", "sandbox", "runner", "llm_client"]
+
+[tool.pytest.ini_options]
+testpaths = ["."]
+python_files = ["test_*.py"]

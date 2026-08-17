@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 数据分析助手</title>
+  <style>
+    :root { --bg:#0f1115; --card:#1a1d24; --accent:#4f8cff; --text:#e6e8ec; --muted:#8b93a1; --ok:#3ecf8e; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+           background:var(--bg); color:var(--text); }
+    .wrap { max-width:920px; margin:0 auto; padding:24px; }
+    h1 { font-size:22px; margin:0 0 4px; }
+    .sub { color:var(--muted); font-size:13px; margin-bottom:20px; }
+    .card { background:var(--card); border-radius:12px; padding:16px 18px; margin-bottom:16px; }
+    .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    input[type=file] { color:var(--muted); }
+    button { background:var(--accent); color:#fff; border:0; border-radius:8px;
+             padding:9px 16px; cursor:pointer; font-size:14px; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    .meta { color:var(--muted); font-size:13px; margin-top:8px; }
+    table { width:100%; border-collapse:collapse; font-size:12px; margin-top:10px; }
+    th,td { border:1px solid #2a2e38; padding:6px 8px; text-align:left; }
+    th { background:#22262f; color:var(--muted); }
+    .chat { display:flex; gap:10px; margin-bottom:12px; }
+    .chat.user { justify-content:flex-end; }
+    .bubble { max-width:80%; padding:10px 14px; border-radius:12px; font-size:14px; line-height:1.6; white-space:pre-wrap; }
+    .chat.user .bubble { background:var(--accent); color:#fff; }
+    .chat.bot .bubble { background:#23272f; }
+    textarea { width:100%; background:#0d0f13; color:var(--text); border:1px solid #2a2e38;
+               border-radius:8px; padding:10px; font-size:14px; resize:vertical; min-height:54px; }
+    img.chart { max-width:100%; border-radius:8px; margin-top:10px; }
+    code { background:#0d0f13; padding:2px 6px; border-radius:4px; font-size:12px; color:#9fd0ff; }
+    .err { color:#ff6b6b; white-space:pre-wrap; font-size:13px; }
+    details { margin-top:8px; }
+    summary { cursor:pointer; color:var(--muted); font-size:12px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AI 数据分析助手</h1>
+  <div class="sub">上传 Excel / CSV → 用自然语言提问 → 自动生成 Pandas 代码并出图</div>
+  <div id="llmBanner" style="display:none; background:#3a2c10; color:#ffd97a; border:1px solid #6b5416; border-radius:8px; padding:10px 14px; font-size:13px; margin-bottom:14px;"></div>
+
+  <div class="card">
+    <div class="row">
+      <input type="file" id="file" accept=".csv,.xlsx,.xls">
+      <button id="uploadBtn">上传数据</button>
+      <button id="insightBtn" style="background:#2c7a4b" disabled>🔍 自动洞察 / 异常下探</button>
+    </div>
+    <div class="meta" id="uploadMeta"></div>
+    <div id="schemaBox"></div>
+  </div>
+
+  <div class="card" id="chatCard" style="display:none">
+    <div id="chips" style="margin-bottom:10px"></div>
+    <div id="chat"></div>
+    <div class="row" style="margin-top:8px">
+      <textarea id="question" placeholder="例如：哪个视频完播率最高？各视频平均播放量多少？按发布日期画播放量趋势图"></textarea>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button id="askBtn">分析</button>
+      <span class="meta" id="askMeta"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let busy = false;
+
+const EXAMPLES = [
+  '哪个视频完播率最高？',
+  '播放量最高的 5 个视频是哪些？',
+  '按发布日期画播放量趋势图',
+  '互动率和完播率的相关性如何？',
+  '时长超过 1000 秒的视频平均播放量多少？',
+  '哪个月的视频数量最多？',
+];
+
+async function health() {
+  try {
+    const r = await fetch('/health');
+    const d = await r.json();
+    if (!d.llm_ready) {
+      const b = $('#llmBanner');
+      b.style.display = 'block';
+      b.textContent = '⚠️ ' + d.hint + '（当前演示将无法生成分析，配置后刷新即可）';
+    }
+  } catch(e) {}
+}
+
+async function upload() {
+  const f = $('#file').files[0];
+  if (!f) { alert('请先选择文件'); return; }
+  const fd = new FormData(); fd.append('file', f);
+  $('#uploadBtn').disabled = true;
+  const r = await fetch('/upload', {method:'POST', body:fd});
+  const d = await r.json();
+  $('#uploadBtn').disabled = false;
+  if (d.error) { $('#uploadMeta').innerHTML = '<span class="err">'+d.error+'</span>'; return; }
+  $('#uploadMeta').textContent = `已加载：${d.rows} 行 × ${d.cols} 列`;
+  let html = '<table><thead><tr>' + d.columns.map(c=>`<th>${c.name}<br><span style="color:#8b93a1">${c.dtype}</span></th>`).join('') + '</tr></thead><tbody>';
+  d.preview.forEach(row => {
+    html += '<tr>' + d.columns.map(c=>`<td>${row[c.name] ?? ''}</td>`).join('') + '</tr>';
+  });
+  html += '</tbody></table>';
+  $('#schemaBox').innerHTML = html;
+  $('#chatCard').style.display = 'block';
+  $('#insightBtn').disabled = false;
+  renderChips();
+}
+
+function renderChips() {
+  $('#chips').innerHTML = EXAMPLES.map(e => `<button class="chip" data-q="${e.replace(/"/g,'&quot;')}" style="background:#22262f;color:#9fd0ff;font-size:12px;padding:5px 10px;margin:2px 4px 2px 0">${e}</button>`).join('');
+  document.querySelectorAll('.chip').forEach(b => b.onclick = () => { $('#question').value = b.dataset.q; ask(); });
+}
+
+function addBubble(role, text) {
+  const div = document.createElement('div');
+  div.className = 'chat ' + role;
+  const b = document.createElement('div');
+  b.className = 'bubble';
+  b.textContent = text;
+  div.appendChild(b);
+  $('#chat').appendChild(div);
+  div.scrollIntoView();
+}
+
+function addCodeBlock(label, code) {
+  const det = document.createElement('details');
+  det.innerHTML = `<summary>${label}</summary><pre><code>${code.replace(/</g,'&lt;')}</code></pre>`;
+  const box = document.createElement('div'); box.className = 'chat bot'; box.appendChild(det);
+  $('#chat').appendChild(box);
+}
+
+async function ask(question) {
+  if (busy) return;
+  const q = question || $('#question').value.trim();
+  if (!q) return;
+  busy = true; $('#askBtn').disabled = true; $('#insightBtn').disabled = true;
+  addBubble('user', q);
+  $('#askMeta').textContent = '分析中…';
+  const r = await fetch('/ask', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({question:q})});
+  const d = await r.json();
+  $('#askMeta').textContent = '';
+  if (d.error) { addBubble('bot', '⚠️ ' + d.error); }
+  else {
+    addBubble('bot', d.result || '(无文字结论)');
+    if (d.chart) {
+      const img = document.createElement('img');
+      img.className = 'chart'; img.src = d.chart;
+      const box = document.createElement('div'); box.className = 'chat bot';
+      const b = document.createElement('div'); b.className = 'bubble'; b.appendChild(img);
+      box.appendChild(b); $('#chat').appendChild(box); box.scrollIntoView();
+    }
+    if (d.code) addCodeBlock('查看生成的 Pandas 代码', d.code);
+    if (d.sql) addCodeBlock('等价 SQL（对应「会 SQL 优先」）', d.sql);
+  }
+  busy = false; $('#askBtn').disabled = false; $('#insightBtn').disabled = false;
+  if (!question) $('#question').value = '';
+}
+
+async function insight() {
+  if (busy) return;
+  busy = true; $('#askBtn').disabled = true; $('#insightBtn').disabled = true;
+  addBubble('user', '🔍 自动洞察：数据总览 + 异常下探 + 运营建议');
+  $('#askMeta').textContent = '洞察中…';
+  const r = await fetch('/insights', {method:'POST'});
+  const d = await r.json();
+  $('#askMeta').textContent = '';
+  if (d.error) { addBubble('bot', '⚠️ ' + d.error); }
+  else {
+    addBubble('bot', d.result || '(无结论)');
+    if (d.chart) {
+      const img = document.createElement('img');
+      img.className = 'chart'; img.src = d.chart;
+      const box = document.createElement('div'); box.className = 'chat bot';
+      const b = document.createElement('div'); b.className = 'bubble'; b.appendChild(img);
+      box.appendChild(b); $('#chat').appendChild(box); box.scrollIntoView();
+    }
+    if (d.code) addCodeBlock('查看生成的 Pandas 代码', d.code);
+  }
+  busy = false; $('#askBtn').disabled = false; $('#insightBtn').disabled = false;
+}
+
+$('#uploadBtn').onclick = upload;
+$('#askBtn').onclick = () => ask();
+$('#insightBtn').onclick = insight;
+$('#question').addEventListener('keydown', e => { if(e.key==='Enter' && (e.ctrlKey||e.metaKey)) ask(); });
+health();
+</script>
+</body>
+</html>
