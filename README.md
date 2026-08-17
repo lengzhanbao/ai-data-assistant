@@ -1,4 +1,11 @@
-# AI 数据分析助手（vibecoding 项目 ①）
+# AI 数据分析助手（ai-data-assistant）
+
+> 📢 一句话定位：**上传 Excel/CSV，用中文问一句，自动生成 Pandas 代码、给出结论与图表——你在本机私有的 ChatGPT-for-Data。**
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+[![CI](https://img.shields.io/badge/CI-pending-lightgrey)](https://github.com/your-github-username/ai-data-assistant/actions)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 > 匹配目标：**小米 · 小爱音箱策略运营实习生 JD** ——「数据分析 / 异常下探 / 会 SQL 优先 / 了解 AI agent 搭建优先」
 > 复用资产：你「帮老师爬视频数据 + 处理数据」的真实场景。
