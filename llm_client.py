@@ -43,7 +43,13 @@ def chat(system: str, user: str, temperature: float = 0.2, timeout: int = 60) ->
     if resp.status_code != 200:
         raise RuntimeError(f"LLM 调用失败 {resp.status_code}: {resp.text[:500]}")
     data = resp.json()
-    return data["choices"][0]["message"]["content"]
+    try:
+        content = data["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError):
+        raise RuntimeError(f"LLM 返回格式异常：{str(data)[:300]}")
+    if not content or not str(content).strip():
+        raise RuntimeError("LLM 返回空内容")
+    return content
 
 
 if __name__ == "__main__":

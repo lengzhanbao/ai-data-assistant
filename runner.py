@@ -15,6 +15,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
 
+# 安全策略与主进程 sandbox.py 共享（单一事实来源）
+from sandbox import ALLOWED_IMPORTS as ALLOWED, SAFE_BUILTINS as SAFE
+
 # 中文字体：优先 Windows 常见字体，找不到再退回默认（避免图内中文乱码）
 _CJK_FONTS = ["Microsoft YaHei", "SimHei", "SimSun", "Noto Sans CJK SC", "PingFang SC"]
 _available = {f.name for f in font_manager.fontManager.ttflist}
@@ -23,23 +26,6 @@ for _f in _CJK_FONTS:
         plt.rcParams["font.sans-serif"] = [_f, "DejaVu Sans"]
         break
 plt.rcParams["axes.unicode_minus"] = False
-
-ALLOWED = {
-    "pandas", "numpy", "matplotlib", "plotly", "sklearn", "scipy",
-    "math", "json", "datetime", "re", "collections", "statistics",
-}
-SAFE = {
-    "len": len, "range": range, "enumerate": enumerate, "zip": zip,
-    "sorted": sorted, "list": list, "dict": dict, "set": set, "tuple": tuple,
-    "sum": sum, "min": min, "max": max, "abs": abs, "round": round,
-    "int": int, "float": float, "str": str, "bool": bool, "print": print,
-    "map": map, "filter": filter, "any": any, "all": all,
-    "isinstance": isinstance, "type": type, "format": format, "repr": repr,
-    "getattr": getattr, "hasattr": hasattr,
-    "Exception": Exception, "ValueError": ValueError, "TypeError": TypeError,
-    "KeyError": KeyError, "IndexError": IndexError, "ZeroDivisionError": ZeroDivisionError,
-    "FileNotFoundError": FileNotFoundError,
-}
 
 
 def _guard(name, *a, **k):

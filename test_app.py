@@ -54,4 +54,11 @@ h = r.get_json()
 print("HEALTH llm_ready=%s" % h["llm_ready"])
 assert "llm_ready" in h
 
+# 安全：路径穿越攻击应被拒绝（修复 CHART-1 漏洞的回归测试）
+r = client.get("/chart/..%2f..%2fREADME.md")
+assert r.status_code in (400, 404), r.status_code
+r2 = client.get("/chart/..%2F..%2Fetc%2Fpasswd")
+assert r2.status_code in (400, 404), r2.status_code
+print("SECURITY chart path-traversal blocked: OK")
+
 print("\n[PASS] 端到端 /upload -> /ask(SQL) -> /insights -> /health 全部正常")

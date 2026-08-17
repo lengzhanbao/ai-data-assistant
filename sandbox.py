@@ -10,9 +10,11 @@ import os
 import sys
 import json
 import base64
+import shutil
 import tempfile
 import subprocess
 
+# 安全策略单一事实来源：runner.py 从本模块导入，避免双份维护
 ALLOWED_IMPORTS = {
     "pandas", "numpy", "matplotlib", "plotly", "sklearn", "scipy",
     "math", "json", "datetime", "re", "collections", "statistics",
@@ -42,29 +44,32 @@ def run_code(code: str, df, timeout: int = 20):
     outpath = os.path.join(tmp, "out.json")
 
     import pandas as pd
-    df.to_pickle(dfpath)
-    with open(codepath, "w", encoding="utf-8") as f:
-        f.write(code)
-
     try:
-        proc = subprocess.run(
-            [sys.executable, _RUNNER, dfpath, outpath, codepath],
-            capture_output=True, text=True, timeout=timeout,
-        )
-    except subprocess.TimeoutExpired:
-        return {
-            "ok": False,
-            "error": f"执行超时（>{timeout}s），已终止。请让代码更高效，或只取需要的列。",
-            "result": None,
-            "chart": None,
-        }
+        df.to_pickle(dfpath)
+        with open(codepath, "w", encoding="utf-8") as f:
+            f.write(code)
 
-    if not os.path.exists(outpath):
-        err = (proc.stderr or proc.stdout or "子进程无输出").strip()
-        return {"ok": False, "error": err, "result": None, "chart": None}
+        try:
+            proc = subprocess.run(
+                [sys.executable, _RUNNER, dfpath, outpath, codepath],
+                capture_output=True, text=True, timeout=timeout,
+            )
+        except subprocess.TimeoutExpired:
+            return {
+                "ok": False,
+                "error": f"执行超时（>{timeout}s），已终止。请让代码更高效，或只取需要的列。",
+                "result": None,
+                "chart": None,
+            }
 
-    with open(outpath, encoding="utf-8") as f:
-        d = json.load(f)
-    if d.get("chart"):
-        d["chart"] = base64.b64decode(d["chart"])
-    return d
+        if not os.path.exists(outpath):
+            err = (proc.stderr or proc.stdout or "子进程无输出").strip()
+            return {"ok": False, "error": err, "result": None, "chart": None}
+
+        with open(outpath, encoding="utf-8") as f:
+            d = json.load(f)
+        if d.get("chart"):
+            d["chart"] = base64.b64decode(d["chart"])
+        return d
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)  # 清理临时文件，防磁盘泄漏
