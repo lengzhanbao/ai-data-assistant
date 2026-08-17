@@ -1,73 +1,53 @@
-# AI 数据分析助手（ai-data-assistant）
-
-> 📢 一句话定位：**上传 Excel/CSV，用中文问一句，自动生成 Pandas 代码、给出结论与图表——你在本机私有的 ChatGPT-for-Data。**
+# AI 鏁版嵁鍒嗘瀽鍔╂墜锛坅i-data-assistant锛?
+> 馃摙 涓€鍙ヨ瘽瀹氫綅锛?*涓婁紶 Excel/CSV锛岀敤涓枃闂竴鍙ワ紝鑷姩鐢熸垚 Pandas 浠ｇ爜銆佺粰鍑虹粨璁轰笌鍥捐〃鈥斺€斾綘鍦ㄦ湰鏈虹鏈夌殑 ChatGPT-for-Data銆?*
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
-[![CI](https://img.shields.io/badge/CI-pending-lightgrey)](https://github.com/your-github-username/ai-data-assistant/actions)
+[![CI](https://img.shields.io/badge/CI-pending-lightgrey)](https://github.com/lengzhanbao/ai-data-assistant/actions)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-> 匹配目标：**小米 · 小爱音箱策略运营实习生 JD** ——「数据分析 / 异常下探 / 会 SQL 优先 / 了解 AI agent 搭建优先」
-> 复用资产：你「帮老师爬视频数据 + 处理数据」的真实场景。
+> 鍖归厤鐩爣锛?*灏忕背 路 灏忕埍闊崇绛栫暐杩愯惀瀹炰範鐢?JD** 鈥斺€斻€屾暟鎹垎鏋?/ 寮傚父涓嬫帰 / 浼?SQL 浼樺厛 / 浜嗚В AI agent 鎼缓浼樺厛銆?> 澶嶇敤璧勪骇锛氫綘銆屽府鑰佸笀鐖棰戞暟鎹?+ 澶勭悊鏁版嵁銆嶇殑鐪熷疄鍦烘櫙銆?
+## 瀹冭兘鍋氫粈涔?涓婁紶涓€浠?Excel / CSV锛岀敤鑷劧璇█鎻愰棶锛岀郴缁熻嚜鍔細
+1. 璁?LLM 鐞嗚В鏁版嵁琛ㄧ粨鏋勶紙鍒椼€佺被鍨嬨€佸墠鍑犺銆佺粺璁℃弿杩帮級
+2. 鐢熸垚 Pandas / Matplotlib 浠ｇ爜
+3. 鍦?*瀹夊叏娌欑**锛堢嫭绔嬪瓙杩涚▼ + 瀵煎叆鐧藉悕鍗?+ 瓒呮椂缁堢粨锛夐噷鎵ц
+4. 杩斿洖**鏂囧瓧缁撹 + 鍥捐〃**锛屽苟灞曠ず鐢熸垚鐨勪唬鐮?
+**鏂板锛堝搴斿皬鐖盝D锛夛細**
+- 馃攳 **鑷姩娲炲療 / 寮傚父涓嬫帰**锛氫竴閿寜閽紝鑷姩浜у嚭銆屾暟鎹€昏 + 寮傚父鐐瑰畾浣?+ 杩愯惀寤鸿銆嶏紙JD 鍏抽敭璇嶏細鏁版嵁鍒嗘瀽 / 寮傚父涓嬫帰锛?- 馃梽锔?**绛変环 SQL 瀵圭収**锛氭瘡涓垎鏋愬悓鏃剁炕璇戞垚 SQL 灞曠ず锛圝D 鍏抽敭璇嶏細浼?SQL 浼樺厛锛?- 鈿狅笍 LLM 鏈厤缃椂椤甸潰椤堕儴鍙嬪ソ鎻愮ず锛?health 鎺㈡祴锛?- 馃挕 绀轰緥闂涓€閿偣鍑伙紙chips锛夛紝鏃犻渶鎵撳瓧
 
-## 它能做什么
-上传一份 Excel / CSV，用自然语言提问，系统自动：
-1. 让 LLM 理解数据表结构（列、类型、前几行、统计描述）
-2. 生成 Pandas / Matplotlib 代码
-3. 在**安全沙箱**（独立子进程 + 导入白名单 + 超时终结）里执行
-4. 返回**文字结论 + 图表**，并展示生成的代码
+绀轰緥闂锛堢敤 `sample_data/video_stats.csv` 鐩存帴璇曪級锛?- 鍝釜瑙嗛瀹屾挱鐜囨渶楂橈紵
+- 鎾斁閲忔渶楂樼殑 5 涓棰戞槸鍝簺锛?- 鎸夊彂甯冩棩鏈熺敾鎾斁閲忚秼鍔垮浘
+- 浜掑姩鐜囧拰瀹屾挱鐜囩殑鐩稿叧鎬у浣曪紵
+- 鐐广€岎煍?鑷姩娲炲療銆嶇湅寮傚父涓嬫帰鏁堟灉
 
-**新增（对应小爱JD）：**
-- 🔍 **自动洞察 / 异常下探**：一键按钮，自动产出「数据总览 + 异常点定位 + 运营建议」（JD 关键词：数据分析 / 异常下探）
-- 🗄️ **等价 SQL 对照**：每个分析同时翻译成 SQL 展示（JD 关键词：会 SQL 优先）
-- ⚠️ LLM 未配置时页面顶部友好提示（/health 探测）
-- 💡 示例问题一键点击（chips），无需打字
-
-示例问题（用 `sample_data/video_stats.csv` 直接试）：
-- 哪个视频完播率最高？
-- 播放量最高的 5 个视频是哪些？
-- 按发布日期画播放量趋势图
-- 互动率和完播率的相关性如何？
-- 点「🔍 自动洞察」看异常下探效果
-
-## 运行
+## 杩愯
 ```bash
 pip install -r requirements.txt
 
-# 配置 LLM（OpenAI 兼容协议，可用你已有的 opencode / glm / deepseek 端点）
-export LLM_BASE_URL="https://你的端点/v1"
-export LLM_API_KEY="你的key"
-export LLM_MODEL="模型名"
+# 閰嶇疆 LLM锛圤penAI 鍏煎鍗忚锛屽彲鐢ㄤ綘宸叉湁鐨?opencode / glm / deepseek 绔偣锛?export LLM_BASE_URL="https://浣犵殑绔偣/v1"
+export LLM_API_KEY="浣犵殑key"
+export LLM_MODEL="妯″瀷鍚?
 
 python app.py
-# 打开 http://127.0.0.1:5000 ，上传 sample_data/video_stats.csv 即可体验
+# 鎵撳紑 http://127.0.0.1:5000 锛屼笂浼?sample_data/video_stats.csv 鍗冲彲浣撻獙
 ```
 
-自检 LLM 连通性：`python llm_client.py`
+鑷 LLM 杩為€氭€э細`python llm_client.py`
 
-## 工程要点（面试可讲）
-| 点 | 做法 |
+## 宸ョ▼瑕佺偣锛堥潰璇曞彲璁诧級
+| 鐐?| 鍋氭硶 |
 |----|------|
-| 沙箱隔离 | `multiprocessing` 独立进程，超时 `terminate`，不污染主进程 |
-| 安全 | 导入白名单 + 受限内置函数，禁 `os/subprocess/socket` |
-| 容错 | LLM 生成代码执行报错 → 自动把报错回灌 LLM 修正一次 |
-| 可解释 | 前端展示生成的代码，结果可追溯 |
-| 数据接口 | 数据集以变量 `df` 注入，代码无法读磁盘其他文件 |
+| 娌欑闅旂 | `multiprocessing` 鐙珛杩涚▼锛岃秴鏃?`terminate`锛屼笉姹℃煋涓昏繘绋?|
+| 瀹夊叏 | 瀵煎叆鐧藉悕鍗?+ 鍙楅檺鍐呯疆鍑芥暟锛岀 `os/subprocess/socket` |
+| 瀹归敊 | LLM 鐢熸垚浠ｇ爜鎵ц鎶ラ敊 鈫?鑷姩鎶婃姤閿欏洖鐏?LLM 淇涓€娆?|
+| 鍙В閲?| 鍓嶇灞曠ず鐢熸垚鐨勪唬鐮侊紝缁撴灉鍙拷婧?|
+| 鏁版嵁鎺ュ彛 | 鏁版嵁闆嗕互鍙橀噺 `df` 娉ㄥ叆锛屼唬鐮佹棤娉曡纾佺洏鍏朵粬鏂囦欢 |
 
-## 对应小米 JD 的话术
-- 「数据分析 / 异常下探」→ 一键「自动洞察」：上传业务表，自动产出 总览/异常/建议（z-score 定位低完播率视频等）
-- 「会 SQL 优先」→ 每个分析自动附**等价 SQL**，展示你懂结构化查询（Pandas ↔ SQL 双语能力）
-- 「了解 AI agent 搭建优先」→ 本项目是 Agent 范式：LLM 决策 → 调用工具（代码执行）→ 观察结果 → 修正重试，与你的 QQBot Agent 同源
+## 瀵瑰簲灏忕背 JD 鐨勮瘽鏈?- 銆屾暟鎹垎鏋?/ 寮傚父涓嬫帰銆嶁啋 涓€閿€岃嚜鍔ㄦ礊瀵熴€嶏細涓婁紶涓氬姟琛紝鑷姩浜у嚭 鎬昏/寮傚父/寤鸿锛坺-score 瀹氫綅浣庡畬鎾巼瑙嗛绛夛級
+- 銆屼細 SQL 浼樺厛銆嶁啋 姣忎釜鍒嗘瀽鑷姩闄?*绛変环 SQL**锛屽睍绀轰綘鎳傜粨鏋勫寲鏌ヨ锛圥andas 鈫?SQL 鍙岃鑳藉姏锛?- 銆屼簡瑙?AI agent 鎼缓浼樺厛銆嶁啋 鏈」鐩槸 Agent 鑼冨紡锛歀LM 鍐崇瓥 鈫?璋冪敤宸ュ叿锛堜唬鐮佹墽琛岋級鈫?瑙傚療缁撴灉 鈫?淇閲嶈瘯锛屼笌浣犵殑 QQBot Agent 鍚屾簮
 
-## 文件结构
+## 鏂囦欢缁撴瀯
 ```
-app.py             Flask 服务（上传 / 提问 / 自动洞察 / 出图 / health）
-analyzer.py        分析引擎：LLM 生成代码 + 沙箱执行 + 自动重试 + SQL 翻译
-sandbox.py         安全沙箱（独立子进程 + 白名单 + 超时）
-runner.py          沙箱子进程运行脚本（中文字体配置在此）
-llm_client.py      OpenAI 兼容 LLM 客户端
-templates/index.html  单页 UI（示例chips / 洞察按钮 / SQL折叠）
-sample_data/       示例视频数据（对应你帮老师爬的数据）
-test_sandbox.py    沙箱离线测试
-test_app.py        端到端 Web 测试（假 LLM）
-```
+app.py             Flask 鏈嶅姟锛堜笂浼?/ 鎻愰棶 / 鑷姩娲炲療 / 鍑哄浘 / health锛?analyzer.py        鍒嗘瀽寮曟搸锛歀LM 鐢熸垚浠ｇ爜 + 娌欑鎵ц + 鑷姩閲嶈瘯 + SQL 缈昏瘧
+sandbox.py         瀹夊叏娌欑锛堢嫭绔嬪瓙杩涚▼ + 鐧藉悕鍗?+ 瓒呮椂锛?runner.py          娌欑瀛愯繘绋嬭繍琛岃剼鏈紙涓枃瀛椾綋閰嶇疆鍦ㄦ锛?llm_client.py      OpenAI 鍏煎 LLM 瀹㈡埛绔?templates/index.html  鍗曢〉 UI锛堢ず渚媍hips / 娲炲療鎸夐挳 / SQL鎶樺彔锛?sample_data/       绀轰緥瑙嗛鏁版嵁锛堝搴斾綘甯€佸笀鐖殑鏁版嵁锛?test_sandbox.py    娌欑绂荤嚎娴嬭瘯
+test_app.py        绔埌绔?Web 娴嬭瘯锛堝亣 LLM锛?```
