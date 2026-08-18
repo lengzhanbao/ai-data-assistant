@@ -1,0 +1,25 @@
+# Secrets and VCS
+.env
+.env.*
+.git/
+.gitignore
+
+# Local environments and caches
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.py[cod]
+
+# Runtime data
+uploads/
+charts/
+*.log
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

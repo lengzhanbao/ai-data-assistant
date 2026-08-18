@@ -81,18 +81,28 @@ def to_sql(df, question: str, code: str) -> str:
 def _run(df, question: str, system_prompt: str, max_retry: int) -> dict:
     schema = describe_df(df)
     user_msg = f"数据集结构：\n{schema}\n\n用户问题：{question}\n\n请只输出 Python 代码。"
-    code = _strip_fences(chat(system_prompt, user_msg))
+    try:
+        code = _strip_fences(chat(system_prompt, user_msg))
+    except Exception:
+        return {"ok": False, "result": None, "chart": None, "error": "模型代码生成失败", "code": ""}
     res = run_code(code, df)
 
     attempt = 0
+    max_retry = max(0, min(int(max_retry), 2))
     while (not res["ok"]) and attempt < max_retry:
+        error_text = str(res.get("error", "执行失败"))[:2000]
         fix_msg = (
-            f"你刚才生成的代码执行报错：\n{res['error']}\n\n原始代码：\n{code}\n\n"
+            f"你刚才生成的代码执行报错：\n{error_text}\n\n原始代码：\n{code[:12000]}\n\n"
             f"请根据报错修正，只输出正确代码。"
         )
-        code = _strip_fences(chat(system_prompt, fix_msg))
+        try:
+            code = _strip_fences(chat(system_prompt, fix_msg))
+        except Exception:
+            break
         res = run_code(code, df)
         attempt += 1
 
-    res["code"] = code  # 供调试/展示
+    res["code"] = code[:20000]  # 供调试/展示
+    if not res.get("ok"):
+        res["error"] = "生成代码无法执行，请调整问题后重试"
     return res

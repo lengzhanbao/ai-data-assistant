@@ -5,20 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI 数据分析助手</title>
   <style>
-    :root { --bg:#0f1115; --card:#1a1d24; --accent:#4f8cff; --text:#e6e8ec; --muted:#8b93a1; --ok:#3ecf8e; }
+    :root { --bg:#0f1115; --card:#1a1d24; --accent:#4f8cff; --text:#e6e8ec; --muted:#8b93a1; --ok:#3ecf8e; --danger:#ff6b6b; }
     * { box-sizing: border-box; }
     body { margin:0; font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
            background:var(--bg); color:var(--text); }
-    .wrap { max-width:920px; margin:0 auto; padding:24px; }
+    .wrap { max-width:960px; margin:0 auto; padding:16px; }
     h1 { font-size:22px; margin:0 0 4px; }
-    .sub { color:var(--muted); font-size:13px; margin-bottom:20px; }
+    .sub { color:var(--muted); font-size:13px; margin-bottom:16px; }
     .card { background:var(--card); border-radius:12px; padding:16px 18px; margin-bottom:16px; }
     .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    .stack { display:flex; gap:10px; flex-direction:column; }
     input[type=file] { color:var(--muted); }
+    label.file-input { display:inline-flex; align-items:center; gap:8px; cursor:pointer; }
     button { background:var(--accent); color:#fff; border:0; border-radius:8px;
              padding:9px 16px; cursor:pointer; font-size:14px; }
+    button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+    button.secondary { background:#22262f; color:var(--text); }
+    button.danger { background:var(--danger); }
     button:disabled { opacity:.5; cursor:not-allowed; }
     .meta { color:var(--muted); font-size:13px; margin-top:8px; }
+    .tablewrap { overflow-x:auto; }
     table { width:100%; border-collapse:collapse; font-size:12px; margin-top:10px; }
     th,td { border:1px solid #2a2e38; padding:6px 8px; text-align:left; }
     th { background:#22262f; color:var(--muted); }
@@ -31,36 +37,65 @@
                border-radius:8px; padding:10px; font-size:14px; resize:vertical; min-height:54px; }
     img.chart { max-width:100%; border-radius:8px; margin-top:10px; }
     code { background:#0d0f13; padding:2px 6px; border-radius:4px; font-size:12px; color:#9fd0ff; }
-    .err { color:#ff6b6b; white-space:pre-wrap; font-size:13px; }
+    .err { color:var(--danger); white-space:pre-wrap; font-size:13px; }
+    .ok { color:var(--ok); }
     details { margin-top:8px; }
     summary { cursor:pointer; color:var(--muted); font-size:12px; }
+    .dataset-list { display:flex; flex-direction:column; gap:8px; }
+    .dataset-item { display:flex; align-items:center; gap:8px; padding:8px 10px;
+                    border:1px solid #2a2e38; border-radius:8px; background:#181b22; }
+    .dataset-item.active { border-color:var(--accent); background:rgba(79,140,255,0.12); }
+    .dataset-item .name { flex:1; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .dataset-item .meta { font-size:12px; color:var(--muted); }
+    .empty { padding:16px; color:var(--muted); text-align:center; font-size:13px; }
+
+    @media (max-width: 640px) {
+      .wrap { padding:10px; }
+      h1 { font-size:18px; }
+      .bubble { max-width:95%; }
+      .row { gap:8px; }
+      button { padding:8px 12px; font-size:13px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { scroll-behavior:auto !important; }
+    }
   </style>
 </head>
 <body>
 <div class="wrap">
   <h1>AI 数据分析助手</h1>
   <div class="sub">上传 Excel / CSV → 用自然语言提问 → 自动生成 Pandas 代码并出图</div>
-  <div id="llmBanner" style="display:none; background:#3a2c10; color:#ffd97a; border:1px solid #6b5416; border-radius:8px; padding:10px 14px; font-size:13px; margin-bottom:14px;"></div>
+  <div id="llmBanner" role="status" aria-live="polite" style="display:none; background:#3a2c10; color:#ffd97a; border:1px solid #6b5416; border-radius:8px; padding:10px 14px; font-size:13px; margin-bottom:14px;"></div>
 
   <div class="card">
     <div class="row">
-      <input type="file" id="file" accept=".csv,.xlsx,.xls">
-      <button id="uploadBtn">上传数据</button>
-      <button id="insightBtn" style="background:#2c7a4b" disabled>🔍 自动洞察 / 异常下探</button>
+      <label class="file-input" for="file">选择文件</label>
+      <input type="file" id="file" accept=".csv,.xlsx,.xls" aria-label="选择 CSV / Excel 文件">
+      <button id="uploadBtn" type="button">上传数据</button>
+      <button id="insightBtn" type="button" class="secondary" disabled>🔍 自动洞察 / 异常下探</button>
     </div>
-    <div class="meta" id="uploadMeta"></div>
+    <div class="meta" id="uploadMeta" aria-live="polite"></div>
     <div id="schemaBox"></div>
   </div>
 
+  <div class="card" id="datasetsCard" style="display:none">
+    <div class="row" style="justify-content:space-between; align-items:center">
+      <strong>数据集（<span id="datasetCount">0</span>）</strong>
+      <span class="meta" id="activeDatasetName"></span>
+    </div>
+    <div class="dataset-list" id="datasetList" role="list" aria-label="已上传数据集列表"></div>
+  </div>
+
   <div class="card" id="chatCard" style="display:none">
-    <div id="chips" style="margin-bottom:10px"></div>
-    <div id="chat"></div>
+    <div id="chips" class="row" aria-label="示例问题" style="margin-bottom:10px"></div>
+    <div id="chat" aria-live="polite"></div>
     <div class="row" style="margin-top:8px">
+      <label class="visually-hidden" for="question" style="position:absolute;left:-9999px">问题输入</label>
       <textarea id="question" placeholder="例如：哪个视频完播率最高？各视频平均播放量多少？按发布日期画播放量趋势图"></textarea>
     </div>
     <div class="row" style="margin-top:8px">
-      <button id="askBtn">分析</button>
-      <span class="meta" id="askMeta"></span>
+      <button id="askBtn" type="button">分析</button>
+      <span class="meta" id="askMeta" aria-live="polite"></span>
     </div>
   </div>
 </div>
@@ -68,6 +103,7 @@
 <script>
 const $ = s => document.querySelector(s);
 let busy = false;
+let currentDatasets = [];
 
 const EXAMPLES = [
   '哪个视频完播率最高？',
@@ -90,30 +126,207 @@ async function health() {
   } catch(e) {}
 }
 
+function showMetaError(text) {
+  const meta = $('#uploadMeta');
+  meta.textContent = '';
+  const span = document.createElement('span');
+  span.className = 'err';
+  span.textContent = text;
+  meta.appendChild(span);
+}
+
+function renderSchema(columns, preview) {
+  const box = $('#schemaBox');
+  box.textContent = '';
+  if (!columns || !columns.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = '暂无数据预览';
+    box.appendChild(empty);
+    return;
+  }
+  const wrap = document.createElement('div');
+  wrap.className = 'tablewrap';
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  const trh = document.createElement('tr');
+  columns.forEach(c => {
+    const th = document.createElement('th');
+    const name = document.createElement('div');
+    name.textContent = c.name;
+    const sub = document.createElement('span');
+    sub.style.color = '#8b93a1';
+    sub.textContent = c.dtype;
+    th.appendChild(name);
+    th.appendChild(sub);
+    trh.appendChild(th);
+  });
+  thead.appendChild(trh);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  preview.forEach(row => {
+    const tr = document.createElement('tr');
+    columns.forEach(c => {
+      const td = document.createElement('td');
+      td.textContent = row[c.name] == null ? '' : String(row[c.name]);
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  box.appendChild(wrap);
+}
+
+function renderDatasets(datasets) {
+  currentDatasets = datasets;
+  const card = $('#datasetsCard');
+  const list = $('#datasetList');
+  list.textContent = '';
+  $('#datasetCount').textContent = datasets.length;
+  if (!datasets.length) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+  datasets.forEach(d => {
+    const item = document.createElement('div');
+    item.className = 'dataset-item' + (d.active ? ' active' : '');
+    item.setAttribute('role', 'listitem');
+
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = d.name;
+    item.appendChild(name);
+
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    meta.textContent = `${d.rows}行×${d.cols}列`;
+    item.appendChild(meta);
+
+    if (!d.active) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'secondary';
+      btn.textContent = '切换';
+      btn.onclick = () => selectDataset(d.dataset_id);
+      item.appendChild(btn);
+    }
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'danger';
+    del.textContent = '删除';
+    del.onclick = () => deleteDataset(d.dataset_id, d.name);
+    item.appendChild(del);
+
+    list.appendChild(item);
+  });
+  const active = datasets.find(d => d.active);
+  $('#activeDatasetName').textContent = active ? `当前：${active.name}` : '';
+}
+
+async function selectDataset(dataset_id, updateView = true) {
+  const d = await safeFetchJson('/datasets/select', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dataset_id }),
+  }, '切换数据集失败');
+  if (d.error) {
+    showMetaError(d.error);
+    return d;
+  }
+  if (updateView) {
+    $('#uploadMeta').textContent = `已切换：${d.rows} 行 × ${d.cols} 列`;
+    renderSchema(d.columns || [], d.preview || []);
+    $('#chatCard').style.display = 'block';
+    $('#insightBtn').disabled = false;
+  }
+  await refreshDatasets(false);
+  return d;
+}
+
+async function deleteDataset(dataset_id, name) {
+  if (!confirm(`确认删除「${name}」？此操作不可撤销。`)) return;
+  const r = await fetch(`/datasets/${encodeURIComponent(dataset_id)}`, { method: 'DELETE' });
+  if (!r.ok) {
+    showMetaError(`删除失败（HTTP ${r.status}）`);
+    return;
+  }
+  const d = await refreshDatasets(false);
+  const active = (d.datasets || []).find(item => item.active);
+  if (active) {
+    await selectDataset(active.dataset_id, true);
+  } else {
+    $('#datasetsCard').style.display = 'none';
+    $('#chatCard').style.display = 'none';
+    $('#insightBtn').disabled = true;
+    $('#schemaBox').textContent = '';
+  }
+}
+
+async function refreshDatasets(restoreActive = true) {
+  const d = await safeFetchJson('/datasets', null, '获取数据集列表失败');
+  if (d.error) {
+    renderDatasets([]);
+    return d;
+  }
+  renderDatasets(d.datasets || []);
+  const active = (d.datasets || []).find(item => item.active);
+  if (restoreActive && active && $('#chatCard').style.display === 'none') {
+    const selected = await selectDataset(active.dataset_id, false);
+    if (selected && !selected.error) {
+      $('#uploadMeta').textContent = `已恢复：${selected.rows} 行 × ${selected.cols} 列`;
+      renderSchema(selected.columns || [], selected.preview || []);
+      $('#chatCard').style.display = 'block';
+      $('#insightBtn').disabled = false;
+    }
+  }
+  return d;
+}
+
 async function upload() {
   const f = $('#file').files[0];
-  if (!f) { alert('请先选择文件'); return; }
+  if (!f) { showMetaError('请先选择文件'); return; }
   const fd = new FormData(); fd.append('file', f);
   $('#uploadBtn').disabled = true;
-  const r = await fetch('/upload', {method:'POST', body:fd});
-  const d = await r.json();
+  let d;
+  try {
+    const r = await fetch('/upload', {method:'POST', body:fd});
+    if (!r.ok) {
+      d = { error: `上传失败（HTTP ${r.status}）` };
+    } else {
+      d = await r.json();
+    }
+  } catch (err) {
+    d = { error: '上传失败：网络或服务异常' };
+  }
   $('#uploadBtn').disabled = false;
-  if (d.error) { $('#uploadMeta').innerHTML = '<span class="err">'+d.error+'</span>'; return; }
+  if (d.error) {
+    showMetaError(d.error);
+    return;
+  }
   $('#uploadMeta').textContent = `已加载：${d.rows} 行 × ${d.cols} 列`;
-  let html = '<table><thead><tr>' + d.columns.map(c=>`<th>${c.name}<br><span style="color:#8b93a1">${c.dtype}</span></th>`).join('') + '</tr></thead><tbody>';
-  d.preview.forEach(row => {
-    html += '<tr>' + d.columns.map(c=>`<td>${row[c.name] ?? ''}</td>`).join('') + '</tr>';
-  });
-  html += '</tbody></table>';
-  $('#schemaBox').innerHTML = html;
+  renderSchema(d.columns, d.preview);
   $('#chatCard').style.display = 'block';
   $('#insightBtn').disabled = false;
+  renderDatasets(d.datasets || []);
   renderChips();
 }
 
 function renderChips() {
-  $('#chips').innerHTML = EXAMPLES.map(e => `<button class="chip" data-q="${e.replace(/"/g,'&quot;')}" style="background:#22262f;color:#9fd0ff;font-size:12px;padding:5px 10px;margin:2px 4px 2px 0">${e}</button>`).join('');
-  document.querySelectorAll('.chip').forEach(b => b.onclick = () => { $('#question').value = b.dataset.q; ask(); });
+  const box = $('#chips');
+  box.textContent = '';
+  EXAMPLES.forEach(e => {
+    const b = document.createElement('button');
+    b.className = 'chip secondary';
+    b.type = 'button';
+    b.dataset.q = e;
+    b.style.cssText = 'background:#22262f;color:#9fd0ff;font-size:12px;padding:5px 10px;margin:2px 4px 2px 0';
+    b.textContent = e;
+    b.onclick = () => { $('#question').value = b.dataset.q; ask(); };
+    box.appendChild(b);
+  });
 }
 
 function addBubble(role, text) {
@@ -129,9 +342,28 @@ function addBubble(role, text) {
 
 function addCodeBlock(label, code) {
   const det = document.createElement('details');
-  det.innerHTML = `<summary>${label}</summary><pre><code>${code.replace(/</g,'&lt;')}</code></pre>`;
-  const box = document.createElement('div'); box.className = 'chat bot'; box.appendChild(det);
+  const summary = document.createElement('summary');
+  summary.textContent = label;
+  det.appendChild(summary);
+  const pre = document.createElement('pre');
+  const codeEl = document.createElement('code');
+  codeEl.textContent = code;
+  pre.appendChild(codeEl);
+  det.appendChild(pre);
+  const box = document.createElement('div');
+  box.className = 'chat bot';
+  box.appendChild(det);
   $('#chat').appendChild(box);
+}
+
+async function safeFetchJson(url, options, fallback) {
+  try {
+    const r = await fetch(url, options);
+    if (!r.ok) return { error: `${fallback}（HTTP ${r.status}）` };
+    return await r.json();
+  } catch (err) {
+    return { error: `${fallback}：网络或服务异常` };
+  }
 }
 
 async function ask(question) {
@@ -141,8 +373,11 @@ async function ask(question) {
   busy = true; $('#askBtn').disabled = true; $('#insightBtn').disabled = true;
   addBubble('user', q);
   $('#askMeta').textContent = '分析中…';
-  const r = await fetch('/ask', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({question:q})});
-  const d = await r.json();
+  const d = await safeFetchJson('/ask', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question: q }),
+  }, '分析失败');
   $('#askMeta').textContent = '';
   if (d.error) { addBubble('bot', '⚠️ ' + d.error); }
   else {
@@ -150,6 +385,7 @@ async function ask(question) {
     if (d.chart) {
       const img = document.createElement('img');
       img.className = 'chart'; img.src = d.chart;
+      img.alt = '分析图表';
       const box = document.createElement('div'); box.className = 'chat bot';
       const b = document.createElement('div'); b.className = 'bubble'; b.appendChild(img);
       box.appendChild(b); $('#chat').appendChild(box); box.scrollIntoView();
@@ -166,8 +402,7 @@ async function insight() {
   busy = true; $('#askBtn').disabled = true; $('#insightBtn').disabled = true;
   addBubble('user', '🔍 自动洞察：数据总览 + 异常下探 + 运营建议');
   $('#askMeta').textContent = '洞察中…';
-  const r = await fetch('/insights', {method:'POST'});
-  const d = await r.json();
+  const d = await safeFetchJson('/insights', { method: 'POST' }, '洞察失败');
   $('#askMeta').textContent = '';
   if (d.error) { addBubble('bot', '⚠️ ' + d.error); }
   else {
@@ -175,6 +410,7 @@ async function insight() {
     if (d.chart) {
       const img = document.createElement('img');
       img.className = 'chart'; img.src = d.chart;
+      img.alt = '洞察图表';
       const box = document.createElement('div'); box.className = 'chat bot';
       const b = document.createElement('div'); b.className = 'bubble'; b.appendChild(img);
       box.appendChild(b); $('#chat').appendChild(box); box.scrollIntoView();
@@ -188,7 +424,9 @@ $('#uploadBtn').onclick = upload;
 $('#askBtn').onclick = () => ask();
 $('#insightBtn').onclick = insight;
 $('#question').addEventListener('keydown', e => { if(e.key==='Enter' && (e.ctrlKey||e.metaKey)) ask(); });
+refreshDatasets();
 health();
 </script>
 </body>
 </html>
+

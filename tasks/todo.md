@@ -1,0 +1,22 @@
+# AI Data Assistant Tasks
+
+- [x] Phase 1A: Harden Flask configuration and request boundaries
+  - Acceptance: no default secret/debug in production; upload/question inputs bounded; errors normalized.
+  - Verify: `python test_app.py`
+  - Files: `app.py`, tests
+- [x] Phase 1B: Fix browser output encoding and sandbox guardrails
+  - Acceptance: untrusted cells/errors/code cannot inject markup; dangerous generated code is rejected or fails safely.
+  - Verify: `python test_sandbox.py`, `python test_app.py`
+  - Files: `templates/index.html`, `sandbox.py`, `runner.py`, tests
+- [x] Phase 2: Add multi-dataset lifecycle, history, retry/cancel, downloads
+  - Acceptance: explicit dataset/session lifecycle and stable result retrieval.
+  - Verify: `python test_app.py`（upload/select/delete + history + download tests）
+  - Files: `app.py`, `templates/index.html`, `test_app.py`
+- [x] Phase 3: Improve responsive accessible UI and observability
+  - Acceptance: loading/error/empty/keyboard/mobile states and redacted structured events.
+  - Verify: 浏览器 320/768/1024/1440 + `python test_app.py`
+  - Files: `templates/index.html`, `app.py`
+- [x] Phase 4: Add container deployment, dependency audit, threat model, docs, CHANGELOG
+  - Acceptance: documented safe deployment profile.
+  - Verify: `docker compose config` + CI workflow
+  - Files: `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `README.md`, `CHANGELOG.md`

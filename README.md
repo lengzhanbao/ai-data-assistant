@@ -75,7 +75,35 @@ python test_app.py       # upload -> ask -> insights -> health, end-to-end
 
 - [ ] Record a GIF demo into the README
 - [ ] `docker compose up` one-command deployment
-- [ ] Multi-dataset sessions per user
+- [x] Multi-dataset sessions per user (`/datasets`, select, delete, bounded limits)
+
+### Docker local deployment
+
+Copy `.env.example` to `.env`, set a strong `FLASK_SECRET` and LLM settings, then run:
+
+```bash
+docker compose up --build
+```
+
+The included profile runs as a non-root user, drops Linux capabilities, uses a read-only container filesystem, uses named volumes for writable uploads/charts, limits memory/CPU/PIDs, and binds port 5000 to localhost. Review and tighten this profile before public exposure. Generated-code execution still requires OS/container isolation; do not remove these limits for convenience.
+
+### Security Notes · 安全与部署说明
+
+**English:** The sandbox uses an isolated subprocess with an import whitelist and a 20-second timeout. This is sufficient for **single-user, local-machine demos** and should NOT be the only security boundary for **public exposure**. Before deploying to a public host:
+
+- Run inside a container (Docker / Podman) with non-root user, read-only filesystem, and `--network=none`.
+- Apply OS-level limits: CPU, memory, PIDs, disk I/O.
+- Use seccomp / AppArmor profiles.
+- Force HTTPS, set `FLASK_SECRET`, `SESSION_COOKIE_SECURE=1`.
+- Add authentication and per-user quotas.
+
+**中文：** 沙箱用独立 Python 子进程 + 导入白名单 + 20 秒超时，仅适合**本机单用户演示**，**不**应作为公网部署的唯一安全边界。公网部署前请先：
+
+- 在容器内运行（Docker / Podman），使用非 root 用户、只读文件系统、`--network=none`
+- 操作系统级限制：CPU / 内存 / PID / 磁盘 I/O
+- seccomp / AppArmor 策略
+- 强制 HTTPS，配置 `FLASK_SECRET`、`SESSION_COOKIE_SECURE=1`
+- 增加认证与每用户配额
 
 [⬆ Back to top](#ai-data-assistant--ai-数据分析助手)
 
@@ -98,6 +126,16 @@ python test_app.py       # upload -> ask -> insights -> health, end-to-end
 - 🛡️ **安全沙箱**：生成代码在隔离进程运行，导入白名单，禁 `os/subprocess/socket`
 - 🔁 **自动纠错**：生成代码执行报错 → 报错回灌 LLM 自动修正一次
 - 🌐 **自带模型**：任意 OpenAI 兼容端点（OpenAI / DeepSeek / GLM / 本地 Ollama…）
+
+### Docker 本地部署
+
+复制 `.env.example` 为 `.env`，配置强随机 `FLASK_SECRET` 和 LLM 参数，然后运行：
+
+```bash
+docker compose up --build
+```
+
+内置配置使用非 root 用户、丢弃 Linux capabilities、只读容器文件系统、named volumes 保存 uploads/charts、CPU/内存/PID 限制，并将 5000 端口绑定到 localhost。公网部署前必须重新审查网络、认证、配额和容器隔离配置。
 
 ### 快速开始
 
@@ -155,7 +193,7 @@ python test_app.py       # 上传→提问→洞察→健康检查 端到端
 
 - [ ] README 补充演示 GIF
 - [ ] `docker compose up` 一键部署
-- [ ] 多数据集会话支持
+- [x] 多数据集会话支持（`/datasets`、切换、删除、数量上限）
 
 [⬆ 返回顶部](#ai-data-assistant--ai-数据分析助手)
 

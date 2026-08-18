@@ -13,6 +13,8 @@ env/
 uploads/
 charts/
 *.log
+.env
+.env.local
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -23,6 +25,3 @@ charts/
 .DS_Store
 Thumbs.db
 
-# 环境变量
-.env
-.env.local
