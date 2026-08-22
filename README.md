@@ -24,6 +24,15 @@ Upload a CSV / Excel file, ask a question in plain language, and the assistant:
 
 ### Highlights
 
+- 🧪 **Assumption-First Pipeline** - auto-checks normality/variance/sample-size before recommending methods
+- 📏 **Effect Size Enforcement** - Cohen d, eta-squared, Bootstrap CI in every result
+- 🔬 **Bayesian Alternatives** - parallel BF10 alongside frequentist tests
+- ⚡ **Statistical Power Analysis** - reverse-calc power/MDE/required-n
+- 🛡️ **Robustness Checks** - outlier-trim + Bootstrap CI + stability verdict
+- 📊 **Regression Diagnostics** - VIF/Breusch-Pagan/DW/standardized-beta
+- 🔗 **Causal Inference Hints** - SMD balance check + PSM/DiD recommendations
+- 📓 **Reproducible Notebook Export** - full session as runnable .ipynb
+- 📝 **APA Results Paragraph Generator** - copy-paste-ready APA 7 text
 - 🔍 **Auto Insights / Anomaly Detection** — one click produces *overview → anomalies → recommendations* (z-score based)
 - 🗄️ **SQL Translation** — every analysis also shows the equivalent SQL (great for interviews / BI teams)
 - 🛡️ **Safe Sandbox** — generated code runs in an isolated process with an import whitelist; no `os`, `subprocess`, `socket`

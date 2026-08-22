@@ -1,4 +1,4 @@
-"""端到端测试：用假 LLM 验证 /upload -> /ask -> /insights 完整 Web 链路（无需真实 API key）。"""
+﻿"""端到端测试：用假 LLM 验证 /upload -> /ask -> /insights 完整 Web 链路（无需真实 API key）。"""
 import os
 import sys as _sys
 
@@ -47,8 +47,11 @@ r = client.post("/ask", json={"question": "哪个视频完播率最高？"})
 ask = r.get_json()
 print("ASK ok=%s has_chart=%s has_sql=%s" % (bool(ask.get("result")), bool(ask.get("chart")), bool(ask.get("sql"))))
 assert ask.get("chart"), "未返回图表 URL"
-assert ask.get("sql"), "未返回 SQL 对照"
 assert "完播率最高" in ask["result"]
+# 按需获取 SQL
+r_sql = client.get(f"/ask/{ask['result_id']}/sql")
+sql_res = r_sql.get_json()
+assert sql_res and sql_res.get("sql"), "未返回 SQL 对照"
 assert ask["dataset_id"] == up["dataset_id"]
 assert ask.get("result_id"), ask
 history = client.get("/history").get_json()

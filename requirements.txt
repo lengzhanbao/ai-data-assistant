@@ -1,6 +1,9 @@
-flask>=3.0
+﻿flask>=3.0
 pandas>=2.0
 numpy>=1.24
 openpyxl>=3.1
 matplotlib>=3.7
 requests>=2.31
+scipy>=1.11
+statsmodels>=0.14
+pingouin>=0.5.4

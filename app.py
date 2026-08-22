@@ -10,11 +10,17 @@ import time
 import uuid
 
 from flask import (
+    stream_with_context,
+    Response,
     Flask, request, render_template, session, jsonify, send_file, url_for,
     abort, make_response,
 )
 import pandas as pd
 
+import analysis_templates
+import auto_analyze
+import report_export
+import stats_guard
 from analyzer import analyze, insight, to_sql
 
 _LOG_PATH = os.getenv("APP_LOG_FILE", "")
@@ -57,6 +63,23 @@ UPLOAD = os.path.join(BASE, "uploads")
 CHARTS = os.path.join(BASE, "charts")
 os.makedirs(UPLOAD, exist_ok=True)
 os.makedirs(CHARTS, exist_ok=True)
+
+_MAX_CHART_AGE_SECONDS = 24 * 3600
+
+
+def _cleanup_old_charts():
+    """清理超过24小时的旧图表文件。"""
+    now = time.time()
+    try:
+        for name in os.listdir(CHARTS):
+            path = os.path.join(CHARTS, name)
+            if os.path.isfile(path) and (now - os.path.getmtime(path)) > _MAX_CHART_AGE_SECONDS:
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+    except OSError:
+        pass
 
 ALLOWED = {".csv", ".xlsx", ".xls"}
 MAX_DATASETS_PER_SESSION = 5
@@ -192,7 +215,10 @@ def upload():
     path = os.path.join(UPLOAD, f"{sid}_{dataset_id}{ext}")
     try:
         f.save(path)
-        df = pd.read_csv(path) if ext == ".csv" else pd.read_excel(path)
+        try:
+            df = pd.read_csv(path, encoding="utf-8-sig") if ext == ".csv" else pd.read_excel(path)
+        except UnicodeDecodeError:
+            df = pd.read_csv(path, encoding="gbk") if ext == ".csv" else pd.read_excel(path)
     except (OSError, UnicodeError, ValueError, pd.errors.ParserError, ImportError):
         try:
             os.remove(path)
@@ -262,22 +288,22 @@ def _serialize_datasets(state) -> list:
 
 def _evict_oldest_if_needed():
     sessions = app.config["sessions"]
-    while _count_total_datasets(sessions) > MAX_TOTAL_DATASETS and sessions:
-        oldest_sid = min(
-            sessions,
-            key=lambda k: min((d.get("created_at", 0) for d in sessions[k]["datasets"].values()), default=0),
-        )
-        if not sessions[oldest_sid]["datasets"]:
-            del sessions[oldest_sid]
+    overflow = _count_total_datasets(sessions) - MAX_TOTAL_DATASETS
+    if overflow <= 0:
+        return
+    all_datasets = []
+    for sid, state in sessions.items():
+        for did, info in state["datasets"].items():
+            all_datasets.append((info.get("created_at", 0), sid, did))
+    all_datasets.sort()
+    for _, sid, did in all_datasets[:overflow]:
+        state = sessions.get(sid)
+        if not state or did not in state["datasets"]:
             continue
-        oldest_did = min(
-            sessions[oldest_sid]["datasets"],
-            key=lambda d: sessions[oldest_sid]["datasets"][d].get("created_at", 0),
-        )
-        sessions[oldest_sid]["datasets"].pop(oldest_did)
-        _remove_dataset_artifacts(oldest_sid, oldest_did)
-        if sessions[oldest_sid]["active"] == oldest_did:
-            sessions[oldest_sid]["active"] = next(iter(sessions[oldest_sid]["datasets"]), None)
+        state["datasets"].pop(did)
+        _remove_dataset_artifacts(sid, did)
+        if state["active"] == did:
+            state["active"] = next(iter(state["datasets"]), None)
 
 
 def _count_total_datasets(sessions) -> int:
@@ -338,6 +364,20 @@ def delete_dataset(did):
     return jsonify({"datasets": _serialize_datasets(state), "active": state["active"]})
 
 
+
+def _build_context(state, current_q):
+    history = state.get("history", [])
+    if len(history) < 2:
+        return ""
+    recent = history[-3:]
+    parts = []
+    for item in recent:
+        q = item.get("question", "")
+        r = str(item.get("result", ""))[:200]
+        parts.append(f"Q: {q}")
+    parts.append(f"Current: {current_q}")
+    return "\n".join(parts)
+
 @app.route("/ask", methods=["POST"])
 def ask():
     sid = _session_id()
@@ -358,15 +398,14 @@ def ask():
         return _json_error("问题过长", 422, "QUESTION_TOO_LONG")
 
     try:
-        res = analyze(info["df"], q)
+        ctx = _build_context(_session_state(sid), q)
+        res = analyze(info["df"], q, context=ctx)
     except Exception:
         return _json_error("分析引擎暂时不可用", 500, "ANALYSIS_ERROR")
 
     if not res.get("ok"):
         return _json_error("分析失败，请调整问题后重试", 422, res.get("code") or "ANALYSIS_FAILED")
 
-    # SQL 对照（失败不阻塞主结果）
-    sql = to_sql(info["df"], q, res.get("code", ""))
     chart_url = _save_chart(sid, did, q, res.get("chart"))
     result_id = str(uuid.uuid4())
     start = time.monotonic()
@@ -376,16 +415,15 @@ def ask():
         "question": q[:500],
         "result": str(res.get("result") or "")[:12000],
         "code": str(res.get("code") or "")[:20000],
-        "sql": str(sql or "")[:12000],
         "chart": chart_url,
         "created_at": int(time.time()),
     }
     _record_history(_session_state(sid), history_entry)
     _log_event("ask_ok", dataset_id=did, result_id=result_id, q_len=len(q),
-               has_chart=bool(chart_url), has_sql=bool(sql),
+               has_chart=bool(chart_url),
                duration_ms=int((time.monotonic() - start) * 1000))
     return jsonify({"result": res.get("result"), "chart": chart_url,
-                    "code": res.get("code"), "sql": sql or None,
+                    "code": res.get("code"),
                     "dataset_id": did, "result_id": result_id})
 
 
@@ -395,7 +433,7 @@ def history():
     state = _session_state(sid)
     return jsonify({
         "items": [
-            {key: value for key, value in item.items() if key not in {"code", "sql", "result"}}
+            {key: value for key, value in item.items() if key not in {"code", "result"}}
             for item in reversed(state.get("history", []))
         ]
     })
@@ -424,6 +462,24 @@ def download_history(result_id, kind):
     response.headers["Content-Type"] = "text/plain; charset=utf-8"
     response.headers["Content-Disposition"] = f'attachment; filename="{result_id}-{kind}.txt"'
     return response
+
+
+@app.route("/ask/<result_id>/sql", methods=["GET"])
+def get_sql(result_id):
+    """按需生成 SQL 对照（用户点击时才调用 LLM）。"""
+    sid = _session_id()
+    state = _session_state(sid)
+    item = next((x for x in state.get("history", []) if x["result_id"] == result_id), None)
+    if item is None:
+        return _json_error("分析结果不存在", 404, "RESULT_NOT_FOUND")
+    if item.get("code"):
+        info = state["datasets"].get(item.get("dataset_id"), {})
+        df = info.get("df")
+        if df is not None:
+            sql = to_sql(df, item.get("question", ""), item["code"])
+            item["sql"] = str(sql or "")[:12000]
+            return jsonify({"sql": sql or None})
+    return jsonify({"sql": None})
 
 
 @app.route("/insights", methods=["POST"])
@@ -477,8 +533,160 @@ def chart(name):
     return send_file(path, mimetype="image/png")
 
 
+@app.route("/export/notebook", methods=["POST"])
+def export_notebook():
+    sid = _session_id()
+    state = _session_state(sid)
+    if not state.get("history"):
+        return _json_error("no analysis history", 404, "EMPTY_HISTORY")
+    did, info = _active_dataset(sid)
+    if info is None:
+        return _json_error("upload data first", 400, "DATASET_REQUIRED")
+    try:
+        filepath = report_export.export_notebook(state, info, state["history"])
+        with open(filepath, encoding="utf-8") as fh:
+            nb_content = fh.read()
+        os.remove(filepath)
+        response = make_response(nb_content)
+        response.headers["Content-Type"] = "application/json"
+        response.headers["Content-Disposition"] = "attachment"
+        return response
+    except Exception as exc:
+        return _json_error(str(exc)[:100], 500, "EXPORT_ERROR")
+
+
+@app.route("/export/html", methods=["GET"])
+def export_html():
+    sid = _session_id()
+    state = _session_state(sid)
+    if not state.get("history"):
+        return _json_error("no history", 404, "EMPTY_HISTORY")
+    ds_name = "Unknown"
+    if state.get("active") and state["active"] in state.get("datasets", {}):
+        ds_name = state["datasets"][state["active"]].get("name", "Unknown")
+    html_content = report_export.export_html_report(state["history"], ds_name)
+    response = make_response(html_content)
+    response.headers["Content-Type"] = "text/html; charset=utf-8"
+    response.headers["Content-Disposition"] = "inline"
+    return response
+
+
+@app.route("/export/apa/<result_id>", methods=["GET"])
+def export_apa(result_id):
+    sid = _session_id()
+    state = _session_state(sid)
+    item = next((x for x in state.get("history", []) if x["result_id"] == result_id), None)
+    if item is None:
+        return _json_error("not found", 404, "RESULT_NOT_FOUND")
+    apa_text = report_export.generate_apa_paragraph(
+        question=item.get("question", ""),
+        result=str(item.get("result", "")),
+    )
+    return jsonify({"apa": apa_text})
+
+
+@app.route("/templates")
+def list_templates():
+    sid = _session_id()
+    state = _session_state(sid)
+    did, info = _active_dataset(sid)
+    if info is None:
+        return jsonify({"templates": []})
+    guard_result = stats_guard.full_guard_check(info["df"])
+    matched = analysis_templates.match_templates(guard_result.get("variable_types", []))
+    return jsonify({"templates": [
+        {"id": t["id"], "name": t["name"], "icon": t["icon"],
+         "description": t["description"]} for t in matched
+    ]})
+
+
+
+
+@app.route("/ask/stream", methods=["POST"])
+def ask_stream():
+    import time as _t
+
+    def generate():
+        sid = _session_id()
+        did, info = _active_dataset(sid)
+        if info is None:
+            yield "data: " + json.dumps({"step": "error", "message": "upload first"}) + "\n\n"
+            return
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict) or not payload.get("question"):
+            yield "data: " + json.dumps({"step": "error", "message": "empty question"}) + "\n\n"
+            return
+        q = payload["question"].strip()
+        yield "data: " + json.dumps({"step": "guard", "message": "Checking...", "progress": 15}) + "\n\n"
+        yield "data: " + json.dumps({"step": "codegen", "message": "Generating code...", "progress": 35}) + "\n\n"
+        start = _t.monotonic()
+        try:
+            ctx = _build_context(_session_state(sid), q)
+            res = analyze(info["df"], q, context=ctx)
+        except Exception as exc:
+            yield "data: " + json.dumps({"step": "error", "message": str(exc)[:100]}) + "\n\n"
+            return
+        if not res.get("ok"):
+            yield "data: " + json.dumps({"step": "error", "message": str(res.get("error", ""))[:200]}) + "\n\n"
+            return
+        yield "data: " + json.dumps({"step": "inference", "message": "Computing effect sizes...", "progress": 85}) + "\n\n"
+        chart_url = _save_chart(sid, did, q, res.get("chart"))
+        result_id = str(uuid.uuid4())
+        entry = {
+            "result_id": result_id, "dataset_id": did,
+            "question": q[:500],
+            "result": str(res.get("result") or "")[:12000],
+            "code": str(res.get("code") or "")[:20000],
+            "chart": chart_url, "created_at": int(time.time()),
+            "guard_summary": res.get("guard_summary"),
+            "inference": res.get("inference"),
+        }
+        _record_history(_session_state(sid), entry)
+        dur_ms = int((_t.monotonic() - start) * 1000)
+        yield "data: " + json.dumps({
+            "step": "done", "progress": 100,
+            "result": res.get("result"), "chart": chart_url,
+            "code": res.get("code"),
+            "methodology": res.get("methodology"),
+            "guard_summary": res.get("guard_summary"),
+            "inference": res.get("inference"),
+            "dataset_id": did, "result_id": result_id,
+            "duration_ms": dur_ms,
+        }) + "\n\n"
+
+    return Response(stream_with_context(generate()), mimetype="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.route("/datasets/<did>/export", methods=["GET"])
+def export_dataset_data(did):
+    sid = _session_id()
+    state = _session_state(sid)
+    info = state["datasets"].get(did)
+    if not info:
+        return _json_error("not found", 404, "DATASET_NOT_FOUND")
+    from io import StringIO
+    buf = StringIO()
+    info["df"].to_csv(buf, index=False)
+    response = make_response(buf.getvalue())
+    response.headers["Content-Type"] = "text/csv; charset=utf-8-sig"
+    fname = str(info.get("name", "data")).replace(" ", "_")
+    response.headers["Content-Disposition"] = 'attachment; filename="' + fname + '_export.csv"'
+    return response
+
+
+
+@app.route("/upload/profile", methods=["GET"])
+def upload_profile():
+    """Upload-time automatic data exploration report."""
+    sid = _session_id()
+    did, info = _active_dataset(sid)
+    if info is None:
+        return jsonify({"error": "no data"})
+    profile = auto_analyze.auto_profile(info["df"])
+    return jsonify(profile)
+
 def main():
-    """Console entry: python -m app 或 ai-data-assistant"""
     debug = os.getenv("FLASK_DEBUG", "0") == "1"
     host = os.getenv("HOST", "127.0.0.1")
     port = int(os.getenv("PORT", "5000"))

@@ -24,6 +24,7 @@ import subprocess
 # 安全策略单一事实来源：runner.py 从本模块导入，避免双份维护
 ALLOWED_IMPORTS = {
     "pandas", "numpy", "matplotlib", "plotly", "sklearn", "scipy",
+    "statsmodels", "pingouin",
     "math", "json", "datetime", "re", "collections", "statistics",
 }
 
@@ -46,42 +47,140 @@ _MAX_RESULT_CHARS = 12000
 _MAX_CHART_BYTES = 5 * 1024 * 1024
 
 _DISALLOWED_NODES = (
-    ast.Import, ast.ImportFrom, ast.FunctionDef, ast.AsyncFunctionDef,
-    ast.ClassDef, ast.Lambda, ast.Try, ast.Raise, ast.Yield,
-    ast.YieldFrom, ast.Delete, ast.Global, ast.Nonlocal,
-    ast.GeneratorExp, ast.ListComp, ast.SetComp, ast.DictComp,
-    ast.With, ast.AsyncWith, ast.Await, ast.AsyncFor, ast.NamedExpr,
+    ast.ClassDef, ast.Try, ast.Raise,
+    ast.Yield, ast.YieldFrom, ast.Delete, ast.Global, ast.Nonlocal,
+    ast.With, ast.AsyncWith, ast.Await, ast.AsyncFor,
 )
 _DISALLOWED_NAMES = {
     "__builtins__", "__import__", "eval", "exec", "compile", "open",
     "input", "globals", "locals", "vars", "os", "sys", "subprocess",
-    "socket", "requests", "urllib", "pathlib",
+    "socket", "requests", "urllib", "pathlib", "__class__", "__subclasses__",
 }
 _SAFE_CALL_NAMES = {
     "abs", "all", "any", "bool", "dict", "enumerate", "filter", "float",
     "format", "int", "isinstance", "len", "list", "map", "max", "min",
     "print", "range", "repr", "round", "set", "sorted", "str", "sum",
-    "tuple", "zip",
+    "tuple", "zip", "pd", "np", "plt", "df", "type", "bytes", "frozenset",
+    "hash", "hex", "oct", "ord", "chr", "bin", "callable", "divmod",
 }
 _SAFE_ATTRIBUTE_NAMES = {
-    "loc", "iloc", "columns", "dtypes", "shape", "head", "tail",
-    "sort_values", "sort_index", "groupby", "agg", "aggregate", "mean",
-    "median", "std", "min", "max", "sum", "count", "idxmax", "idxmin",
-    "dropna", "fillna", "astype", "value_counts", "nunique", "unique",
-    "reset_index", "set_index", "pivot_table", "corr", "cov", "quantile",
-    "describe", "plot", "bar", "line", "scatter", "hist", "box", "pie",
-    "dt", "str", "year", "month", "day", "figure", "gca", "subplots",
-    "title", "xlabel", "ylabel", "xticks", "yticks", "legend", "grid",
-    "tight_layout", "to_datetime", "isna", "isnull", "isnan", "where",
-    "array", "arange", "percentile", "corrcoef", "DataFrame", "Series",
+    # pandas DataFrame/Series methods & properties
+    "loc", "iloc", "columns", "dtypes", "dtype", "shape", "size", "index",
+    "head", "tail", "sample", "values", "T", "empty", "ndim",
+    "sort_values", "sort_index", "groupby", "agg", "aggregate", "transform",
+    "mean", "median", "std", "var", "sem", "skew", "kurt",
+    "min", "max", "sum", "prod", "count", "idxmax", "idxmin",
+    "dropna", "fillna", "ffill", "bfill", "interpolate", "replace",
+    "astype", "convert_dtypes", "infer_objects", "copy", "drop",
+    "rename", "rename_axis", "insert", "assign", "pop",
+    "value_counts", "nunique", "unique", "duplicated", "drop_duplicates",
+    "reset_index", "set_index", "reindex", "reindex_like", "align",
+    "pivot_table", "pivot", "melt", "stack", "unstack", "explode",
+    "merge", "join", "concat", "append", "combine_first", "update",
+    "corr", "cov", "quantile", "describe", "info", "memory_usage",
+    "rolling", "expanding", "ewm", "resample", "shift", "diff", "pct_change",
+    "rank", "clip", "abs", "round", "cumsum", "cumprod", "cummax", "cummin",
+    "between", "isin", "contains", "startswith", "endswith", "strip", "lstrip",
+    "rstrip", "lower", "upper", "title", "capitalize", "len", "split", "cat",
+    "zfill", "pad", "center", "repeat", "slice", "slice_replace",
+    "apply", "applymap", "map", "pipe", "where", "mask", "query", "eval",
+    "to_datetime", "to_numeric", "to_string", "to_frame", "to_series", "tolist",
+    "items", "iterrows", "itertuples", "keys", "add_prefix", "add_suffix",
+    # datetime accessor
+    "dt", "year", "month", "day", "hour", "minute", "second", "weekday",
+    "dayofweek", "day_name", "month_name", "quarter", "date", "time",
+    # string accessor
+    "str",
+    # numpy
+    "array", "arange", "linspace", "logspace", "zeros", "ones", "full",
+    "eye", "diag", "percentile", "corrcoef", "cov", "mean", "median", "std",
+    "var", "nanmean", "nanstd", "nanmin", "nanmax", "argmax", "argmin",
+    "argsort", "sort", "concatenate", "stack", "vstack", "hstack", "column_stack",
+    "reshape", "ravel", "flatten", "squeeze", "expand_dims", "transpose",
+    "unique", "in1d", "intersect1d", "union1d", "setdiff1d", "setxor1d",
+    "where", "clip", "maximum", "minimum", "absolute", "sign", "floor",
+    "ceil", "trunc", "sqrt", "power", "exp", "log", "log10", "log2", "sin",
+    "cos", "tan", "arcsin", "arccos", "arctan", "sinh", "cosh", "tanh",
+    "random", "seed", "rand", "randn", "randint", "choice", "shuffle",
+    "normal", "poisson", "binomial", "uniform", "inf", "nan", "pi", "e",
+    "isinf", "isnan", "isfinite", "nan_to_num", "finite",
+    "DataFrame", "Series", "Index", "MultiIndex", "Categorical",
+    "Timestamp", "Timedelta", "Period", "Interval",
+    "cut", "qcut", "factorize", "get_dummies", "melt",
+    "read_csv", "read_excel", "date_range", "period_range", "timedelta_range",
+    "to_timedelta", "to_pickle", "notna", "notnull", "isna", "isnull",
+    # matplotlib
+    "figure", "gca", "gcf", "subplots", "subplot", "axes", "clf", "cla",
+    "close", "sca", "draw", "pause",
+    "title", "xlabel", "ylabel", "clabel", "suptitle", "text", "annotate",
+    "xticks", "yticks", "zticks", "xlim", "ylim", "zlim", "xscale", "yscale",
+    "legend", "grid", "tight_layout", "subplots_adjust", "colorbar",
+    "plot", "plotly", "bar", "barh", "line", "scatter", "hist", "boxplot", "pie", "errorbar",
+    "fill_between", "fill_betweenx", "stackplot", "stem", "step", "violinplot",
+    "imshow", "contour", "contourf", "pcolormesh", "quiver", "streamplot",
+    "plot_date", "hexbin", "axvline", "axhline", "axvspan", "axhspan",
+    "axison", "spines", "patch", "patches", "lines", "texts", "tables",
+    "collections", "images", "artists", "containers", "child_axes",
+    "set_title", "set_xlabel", "set_ylabel", "set_xlim", "set_ylim",
+    "set_xticks", "set_yticks", "set_xticklabels", "set_yticklabels",
+    "tick_params", "autoscale", "margins", "axis", "invert_xaxis", "invert_yaxis",
+    "get_position", "set_position", "add_subplot", "add_axes", "twinx", "twiny",
+    "savefig", "show", "style", "use", "rcParams", "cm", "colors", "colormaps",
+    "patches", "ticker", "dates", "font_manager", "pylab",
+    # sklearn basic
+    "fit", "predict", "transform", "fit_transform", "score", "inverse_transform",
+    "LinearRegression", "LogisticRegression", "StandardScaler", "MinMaxScaler",
+    "LabelEncoder", "OneHotEncoder", "KMeans", "PCA", "train_test_split",
+    "accuracy_score", "precision_score", "recall_score", "f1_score",
+    "confusion_matrix", "classification_report", "mean_squared_error",
+    "mean_absolute_error", "r2_score", "silhouette_score",
+    # scipy basic
+    "stats", "optimize", "signal", "integrate", "linalg", "sparse",
+    "pearsonr", "spearmanr", "kendalltau", "chi2_contingency", "ttest_ind",
+    "ttest_rel", "mannwhitneyu", "wilcoxon", "kruskal", "friedmanchisquare",
+    "linregress", "shapiro", "normaltest", "levene", "bartlett",
+    # statsmodels & pingouin & extended scipy
+    "OLS", "GLM", "Logit", "Probit", "add_constant", "summary", "summary2",
+    "params", "bse", "tvalues", "pvalues", "conf_int", "rsquared",
+    "rsquared_adj", "fvalue", "f_pvalue", "aic", "bic", "llf", "resid",
+    "fittedvalues", "anova_lm", "het_breuschpagan", "durbin_watson", "vif",
+    "variance_inflation_factor", "multitest", "multipletests",
+    "pairwise_tukeyhsd", "MultiComparison", "adfuller", "acf", "pacf",
+    "seasonal_decompose", "STL", "ARIMA", "SARIMAX", "ExponentialSmoothing",
+    "ttest", "mannwhitney", "wilcoxon", "anova", "welch_anova", "kruskal",
+    "chi2_independence", "corr", "correlation", "partial_corr",
+    "pairwise_tests", "pairwise_corr", "rm_anova", "normality",
+    "homoscedasticity", "compute_effsize", "bayesfactor_ttest",
+    "power_ttest", "cronbach_alpha", "effectsize",
+    # scipy extended
+    "chisquare", "fisher_exact", "boschloo_exact", "barnard_exact",
+    "mode", "sem", "iqr", "median_abs_deviation", "variation",
+    "skewtest", "kurtosistest", "anderson", "cramervonmises",
+    "bootstrap", "permutation_test", "monte_carlo_test",
+# general safe attrs
+    "name", "names", "columns", "values", "index", "data", "dtype", "types",
+    "result_type", "categories", "ordered", "freq", "tz", "unit",
+    "start", "stop", "step", "endpoint", "retstep", "base", "num",
+    "left", "right", "include_lowest", "bins", "labels", "precision",
+    "ascending", "inplace", "kind", "na_position", "ignore_index",
+    "key", "level", "by", "axis", "skipna", "numeric_only", "ddof",
+    "margin", "margins_name", "fill_value", "observed", "dropna",
+    "how", "on", "left_on", "right_on", "suffixes", "validate", "indicator",
+    "normalize", "bins_count", "subset", "keep", "orientation",
+    "width", "height", "bottom", "top", "alpha", "color", "cmap", "norm",
+    "linewidth", "linestyle", "marker", "markersize", "edgecolor", "facecolor",
+    "fontsize", "fontweight", "rotation", "ha", "va", "label", "labels",
+    "fmt", "dpi", "bbox_inches", "pad", "aspect", "interpolation",
+    "origin", "extent", "levels", "extend", "orientation", "density",
+    "weights", "cumulative", "histtype", "rwidth", "align", "log",
 }
 
 
 def _preflight(code: str) -> None:
     """执行前 AST 预检。
 
-    允许常见 Pandas/NumPy/Matplotlib 数据分析调用；阻断文件、网络、动态执行、
-    dunder、任意方法调用和任意属性访问。此检查不是 OS 级安全边界。
+    允许白名单模块导入和常见数据分析调用；阻断非白名单 import、
+    动态执行、dunder、危险结构。此检查不是 OS 级安全边界。
     """
     if not isinstance(code, str) or not code.strip():
         raise ValueError("代码不能为空")
@@ -93,7 +192,18 @@ def _preflight(code: str) -> None:
         raise ValueError("代码语法无效") from exc
     if sum(1 for _ in ast.walk(tree)) > _MAX_AST_NODES:
         raise ValueError("代码过于复杂")
+
     for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                root_mod = alias.name.split(".")[0]
+                if root_mod not in ALLOWED_IMPORTS:
+                    raise ValueError(f"禁止导入 {alias.name}")
+        if isinstance(node, ast.ImportFrom):
+            if node.module:
+                root_mod = node.module.split(".")[0]
+                if root_mod not in ALLOWED_IMPORTS:
+                    raise ValueError(f"禁止导入 from {node.module}")
         if isinstance(node, _DISALLOWED_NODES):
             raise ValueError(f"代码包含禁止结构：{type(node).__name__}")
         if isinstance(node, ast.Name) and node.id in _DISALLOWED_NAMES:

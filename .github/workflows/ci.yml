@@ -22,17 +22,21 @@ jobs:
           pip install -r requirements.txt
       - name: Compile check
         run: |
-          python -m py_compile app.py analyzer.py sandbox.py runner.py llm_client.py
+          python -m py_compile app.py analyzer.py sandbox.py runner.py llm_client.py stats_guard.py inference_engine.py report_export.py analysis_templates.py
       - name: Ruff
         run: |
           pip install ruff
           ruff check .
       - name: Sandbox tests
         run: python test_sandbox.py
-      - name: App tests
+      - name: Stats guard tests
+        run: python -X utf8 test_stats_guard.py
+      - name: Inference tests
+        run: python -X utf8 test_inference.py
+      - name: App tests (e2e)
         env:
           FLASK_SECRET: ci-secret
-        run: python test_app.py
+        run: python -X utf8 test_app.py
       - name: pip-audit
         run: |
           pip install pip-audit

@@ -38,6 +38,7 @@
     img.chart { max-width:100%; border-radius:8px; margin-top:10px; }
     code { background:#0d0f13; padding:2px 6px; border-radius:4px; font-size:12px; color:#9fd0ff; }
     .err { color:var(--danger); white-space:pre-wrap; font-size:13px; }
+    .guard-card { background:#1a2a1a !important; border:1px solid #2a5a2a; font-size:13px; }
     .ok { color:var(--ok); }
     details { margin-top:8px; }
     summary { cursor:pointer; color:var(--muted); font-size:12px; }
@@ -76,6 +77,10 @@
     </div>
     <div class="meta" id="uploadMeta" aria-live="polite"></div>
     <div id="schemaBox"></div>
+    <div id="templateBox" style="display:none;margin-top:12px;">
+      <div style="font-size:12px;color:#8b93a1;margin-bottom:6px;">Recommended:</div>
+      <div class="row" id="templateList"></div>
+    </div>
   </div>
 
   <div class="card" id="datasetsCard" style="display:none">
@@ -95,6 +100,8 @@
     </div>
     <div class="row" style="margin-top:8px">
       <button id="askBtn" type="button">分析</button>
+      <button id="exportNbBtn" type="button" class="secondary" style="font-size:12px;">Notebook导出</button>
+      <button id="exportHtmlBtn" type="button" class="secondary" style="font-size:12px;">HTML报告</button>
       <span class="meta" id="askMeta" aria-live="polite"></span>
     </div>
   </div>
@@ -359,11 +366,36 @@ function addCodeBlock(label, code) {
 async function safeFetchJson(url, options, fallback) {
   try {
     const r = await fetch(url, options);
-    if (!r.ok) return { error: `${fallback}（HTTP ${r.status}）` };
-    return await r.json();
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      return { error: body.error || `${fallback}（HTTP ${r.status}）` };
+    }
+    return body;
   } catch (err) {
     return { error: `${fallback}：网络或服务异常` };
   }
+}
+
+function addSqlButton(resultId) {
+  if (!resultId) return;
+  const box = document.createElement('div');
+  box.className = 'chat bot';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'secondary';
+  btn.textContent = '📋 翻译为 SQL';
+  btn.style.cssText = 'margin-top:4px;font-size:12px;padding:6px 12px;';
+  btn.onclick = async () => {
+    btn.disabled = true;
+    btn.textContent = '翻译中…';
+    const r = await safeFetchJson(`/ask/${encodeURIComponent(resultId)}/sql`, {}, 'SQL 翻译失败');
+    btn.remove();
+    if (r.error) { addBubble('bot', '⚠️ ' + r.error); return; }
+    if (r.sql) addCodeBlock('等价 SQL', r.sql);
+    else addBubble('bot', '(该分析暂无法翻译为等价 SQL)');
+  };
+  box.appendChild(btn);
+  $('#chat').appendChild(box);
 }
 
 async function ask(question) {
@@ -382,6 +414,27 @@ async function ask(question) {
   if (d.error) { addBubble('bot', '⚠️ ' + d.error); }
   else {
     addBubble('bot', d.result || '(无文字结论)');
+    if (d.guard_summary) {
+      const gDiv = document.createElement('div');
+      gDiv.className = 'chat bot';
+      const gCard = document.createElement('div');
+      gCard.className = 'bubble guard-card';
+      const label = document.createElement('strong');
+      label.textContent = '方法学检查: ';
+      const detail = document.createElement('span');
+      detail.textContent = d.guard_summary;
+      gCard.appendChild(label); gCard.appendChild(detail);
+      if (d.methodology) {
+        const methTitle = document.createElement('div');
+        methTitle.style.cssText = 'margin-top:8px;font-weight:bold;color:#8f8;';
+        methTitle.textContent = '方法论说明';
+        const methBody = document.createElement('div');
+        methBody.style.cssText = 'margin-top:4px;white-space:pre-wrap;';
+        methBody.textContent = d.methodology;
+        gCard.appendChild(methTitle); gCard.appendChild(methBody);
+      }
+      gDiv.appendChild(gCard); #chat.appendChild(gDiv); gDiv.scrollIntoView();
+    }
     if (d.chart) {
       const img = document.createElement('img');
       img.className = 'chart'; img.src = d.chart;
@@ -390,8 +443,10 @@ async function ask(question) {
       const b = document.createElement('div'); b.className = 'bubble'; b.appendChild(img);
       box.appendChild(b); $('#chat').appendChild(box); box.scrollIntoView();
     }
-    if (d.code) addCodeBlock('查看生成的 Pandas 代码', d.code);
-    if (d.sql) addCodeBlock('等价 SQL（对应「会 SQL 优先」）', d.sql);
+    if (d.code) {
+      addCodeBlock('查看生成的 Pandas 代码', d.code);
+      addSqlButton(d.result_id);
+    }
   }
   busy = false; $('#askBtn').disabled = false; $('#insightBtn').disabled = false;
   if (!question) $('#question').value = '';
@@ -424,8 +479,23 @@ $('#uploadBtn').onclick = upload;
 $('#askBtn').onclick = () => ask();
 $('#insightBtn').onclick = insight;
 $('#question').addEventListener('keydown', e => { if(e.key==='Enter' && (e.ctrlKey||e.metaKey)) ask(); });
+async function loadTemplates() {
+  try {
+    const r = await fetch('/templates'); const d = await r.json();
+    const box = document.getElementById('templateList'); box.textContent='';
+    if (!d.templates || !d.templates.length) { document.getElementById('templateBox').style.display='none'; return; }
+    document.getElementById('templateBox').style.display='block';
+    d.templates.forEach(t => {
+      const btn = document.createElement('button'); btn.className='tpl-btn';
+      btn.textContent = t.icon+' '+t.name; btn.title=t.description;
+      box.appendChild(btn);
+    });
+  } catch(e) {}
+}
+loadTemplates();
 refreshDatasets();
 health();
+document.getElementById('exportHtmlBtn').onclick=function(){window.open('/export/html','_blank')};
 </script>
 </body>
 </html>
