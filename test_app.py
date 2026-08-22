@@ -1,11 +1,11 @@
 """端到端测试：用假 LLM 验证 /upload -> /ask -> /insights 完整 Web 链路（无需真实 API key）。"""
+import importlib
 import os
 import sys as _sys
+from io import BytesIO
 
 import analyzer
 from app import app
-import importlib
-from io import BytesIO
 
 # 测试脚本复用同一 Flask app；启动前清理上次进程残留的内存状态。
 app.config["sessions"].clear()

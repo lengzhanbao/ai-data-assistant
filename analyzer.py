@@ -2,10 +2,10 @@
 分析引擎：把"自然语言问题 + 数据集"变成"LLM 生成代码 → 沙箱执行 → 结果/图表"。
 """
 import json
-
-import stats_guard
-import inference_engine
 import os as _os
+
+import inference_engine
+import stats_guard
 
 if _os.getenv("LLM_API_KEY"):
     from llm_client import chat

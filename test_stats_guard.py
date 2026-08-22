@@ -6,9 +6,13 @@ import numpy as np
 import pandas as pd
 
 from stats_guard import (
-    check_normality, check_variance_equality, check_sample_size,
-    detect_variable_types, recommend_method, full_guard_check,
+    check_normality,
+    check_sample_size,
+    check_variance_equality,
+    detect_variable_types,
+    full_guard_check,
     guard_to_prompt,
+    recommend_method,
 )
 
 PASS = 0

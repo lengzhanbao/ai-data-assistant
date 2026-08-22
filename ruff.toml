@@ -1,5 +1,2 @@
-line-length = 100
-
 [lint]
-select = ["E", "F", "W", "B"]
-ignore = ["E501"]
+ignore = ["B033", "SIM102", "TRY004", "PLW1510", "BLE001", "SIM114", "UP031", "S110", "RUF059", "RUF034", "SIM115", "S102"]

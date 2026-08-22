@@ -9,13 +9,20 @@ import re
 import time
 import uuid
 
-from flask import (
-    stream_with_context,
-    Response,
-    Flask, request, render_template, session, jsonify, send_file, url_for,
-    abort, make_response,
-)
 import pandas as pd
+from flask import (
+    Flask,
+    Response,
+    abort,
+    jsonify,
+    make_response,
+    render_template,
+    request,
+    send_file,
+    session,
+    stream_with_context,
+    url_for,
+)
 
 import analysis_templates
 import auto_analyze

@@ -13,13 +13,13 @@
    - CPU / 内存 / PID 限额、seccomp / AppArmor
 """
 import ast
-import os
-import sys
-import json
 import base64
+import json
+import os
 import shutil
-import tempfile
 import subprocess
+import sys
+import tempfile
 
 # 安全策略单一事实来源：runner.py 从本模块导入，避免双份维护
 ALLOWED_IMPORTS = {
@@ -93,11 +93,12 @@ _SAFE_ATTRIBUTE_NAMES = {
     "str",
     # numpy
     "array", "arange", "linspace", "logspace", "zeros", "ones", "full",
-    "eye", "diag", "percentile", "corrcoef", "nanmean", "nanstd", "nanmin", "nanmax", "argmax", "argmin",
-    "argsort", "sort", "concatenate", "vstack", "hstack", "column_stack",
+    "eye", "diag", "percentile", "corrcoef", "cov", "mean", "median", "std",
+    "var", "nanmean", "nanstd", "nanmin", "nanmax", "argmax", "argmin",
+    "argsort", "sort", "concatenate", "stack", "vstack", "hstack", "column_stack",
     "reshape", "ravel", "flatten", "squeeze", "expand_dims", "transpose",
-    "in1d", "intersect1d", "union1d", "setdiff1d", "setxor1d",
-    "maximum", "minimum", "absolute", "sign", "floor",
+    "unique", "in1d", "intersect1d", "union1d", "setdiff1d", "setxor1d",
+    "where", "clip", "maximum", "minimum", "absolute", "sign", "floor",
     "ceil", "trunc", "sqrt", "power", "exp", "log", "log10", "log2", "sin",
     "cos", "tan", "arcsin", "arccos", "arctan", "sinh", "cosh", "tanh",
     "random", "seed", "rand", "randn", "randint", "choice", "shuffle",
@@ -105,12 +106,13 @@ _SAFE_ATTRIBUTE_NAMES = {
     "isinf", "isnan", "isfinite", "nan_to_num", "finite",
     "DataFrame", "Series", "Index", "MultiIndex", "Categorical",
     "Timestamp", "Timedelta", "Period", "Interval",
-    "cut", "qcut", "factorize", "get_dummies", "read_csv", "read_excel", "date_range", "period_range", "timedelta_range",
+    "cut", "qcut", "factorize", "get_dummies", "melt",
+    "read_csv", "read_excel", "date_range", "period_range", "timedelta_range",
     "to_timedelta", "to_pickle", "notna", "notnull", "isna", "isnull",
     # matplotlib
     "figure", "gca", "gcf", "subplots", "subplot", "axes", "clf", "cla",
     "close", "sca", "draw", "pause",
-    "xlabel", "ylabel", "clabel", "suptitle", "text", "annotate",
+    "title", "xlabel", "ylabel", "clabel", "suptitle", "text", "annotate",
     "xticks", "yticks", "zticks", "xlim", "ylim", "zlim", "xscale", "yscale",
     "legend", "grid", "tight_layout", "subplots_adjust", "colorbar",
     "plot", "plotly", "bar", "barh", "line", "scatter", "hist", "boxplot", "pie", "errorbar",
@@ -124,9 +126,9 @@ _SAFE_ATTRIBUTE_NAMES = {
     "tick_params", "autoscale", "margins", "axis", "invert_xaxis", "invert_yaxis",
     "get_position", "set_position", "add_subplot", "add_axes", "twinx", "twiny",
     "savefig", "show", "style", "use", "rcParams", "cm", "colors", "colormaps",
-    "ticker", "dates", "font_manager", "pylab",
+    "patches", "ticker", "dates", "font_manager", "pylab",
     # sklearn basic
-    "fit", "predict", "fit_transform", "score", "inverse_transform",
+    "fit", "predict", "transform", "fit_transform", "score", "inverse_transform",
     "LinearRegression", "LogisticRegression", "StandardScaler", "MinMaxScaler",
     "LabelEncoder", "OneHotEncoder", "KMeans", "PCA", "train_test_split",
     "accuracy_score", "precision_score", "recall_score", "f1_score",
@@ -145,29 +147,32 @@ _SAFE_ATTRIBUTE_NAMES = {
     "variance_inflation_factor", "multitest", "multipletests",
     "pairwise_tukeyhsd", "MultiComparison", "adfuller", "acf", "pacf",
     "seasonal_decompose", "STL", "ARIMA", "SARIMAX", "ExponentialSmoothing",
-    "ttest", "mannwhitney", "anova", "welch_anova", "chi2_independence", "correlation", "partial_corr",
+    "ttest", "mannwhitney", "wilcoxon", "anova", "welch_anova", "kruskal",
+    "chi2_independence", "corr", "correlation", "partial_corr",
     "pairwise_tests", "pairwise_corr", "rm_anova", "normality",
     "homoscedasticity", "compute_effsize", "bayesfactor_ttest",
     "power_ttest", "cronbach_alpha", "effectsize",
     # scipy extended
     "chisquare", "fisher_exact", "boschloo_exact", "barnard_exact",
-    "mode", "iqr", "median_abs_deviation", "variation",
+    "mode", "sem", "iqr", "median_abs_deviation", "variation",
     "skewtest", "kurtosistest", "anderson", "cramervonmises",
     "bootstrap", "permutation_test", "monte_carlo_test",
 # general safe attrs
-    "name", "names", "data", "types",
+    "name", "names", "columns", "values", "index", "data", "dtype", "types",
     "result_type", "categories", "ordered", "freq", "tz", "unit",
-    "start", "stop", "endpoint", "retstep", "base", "num",
+    "start", "stop", "step", "endpoint", "retstep", "base", "num",
     "left", "right", "include_lowest", "bins", "labels", "precision",
     "ascending", "inplace", "kind", "na_position", "ignore_index",
-    "key", "level", "by", "skipna", "numeric_only", "ddof",
-    "margin", "margins_name", "fill_value", "observed", "how", "on", "left_on", "right_on", "suffixes", "validate", "indicator",
+    "key", "level", "by", "axis", "skipna", "numeric_only", "ddof",
+    "margin", "margins_name", "fill_value", "observed", "dropna",
+    "how", "on", "left_on", "right_on", "suffixes", "validate", "indicator",
     "normalize", "bins_count", "subset", "keep", "orientation",
     "width", "height", "bottom", "top", "alpha", "color", "cmap", "norm",
     "linewidth", "linestyle", "marker", "markersize", "edgecolor", "facecolor",
-    "fontsize", "fontweight", "rotation", "ha", "va", "label", "fmt", "dpi", "bbox_inches", "aspect", "interpolation",
-    "origin", "extent", "levels", "extend", "density",
-    "weights", "cumulative", "histtype", "rwidth",
+    "fontsize", "fontweight", "rotation", "ha", "va", "label", "labels",
+    "fmt", "dpi", "bbox_inches", "pad", "aspect", "interpolation",
+    "origin", "extent", "levels", "extend", "orientation", "density",
+    "weights", "cumulative", "histtype", "rwidth", "align", "log",
 }
 
 

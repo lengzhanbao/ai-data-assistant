@@ -1,6 +1,7 @@
 """离线测试：不调用 LLM，直接验证安全沙箱能执行代码并出图。"""
 import pandas as pd
-from sandbox import run_code, _preflight
+
+from sandbox import _preflight, run_code
 
 
 def main():

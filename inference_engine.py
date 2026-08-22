@@ -14,10 +14,10 @@ except ImportError:
     HAS_PINGOUIN = False
 
 try:
-    from statsmodels.stats.power import TTestIndPower, FTestAnovaPower
     import statsmodels.api as sm_api
-    from statsmodels.stats.outliers_influence import variance_inflation_factor
     from statsmodels.stats.diagnostic import het_breuschpagan
+    from statsmodels.stats.outliers_influence import variance_inflation_factor
+    from statsmodels.stats.power import FTestAnovaPower, TTestIndPower
     from statsmodels.stats.stattools import durbin_watson as dw_stat
     HAS_STATSMODELS = True
 except ImportError:
@@ -230,7 +230,7 @@ def regression_diagnostics(df, y_col, x_cols, add_intercept=True):
     model = sm_api.OLS(y_clean, X_design_arr).fit()
 
     diagnostics = {
-        "n": int(len(y)),
+        "n": len(y),
         "r_squared": round(float(model.rsquared), 4),
         "r_squared_adj": round(float(model.rsquared_adj), 4),
         "aic": round(float(model.aic), 2),

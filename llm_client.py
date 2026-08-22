@@ -6,8 +6,9 @@ LLM 客户端：兼容 OpenAI Chat Completions 协议。
   LLM_API_KEY   - API Key（没有可不填，部分免费网关不需要）
   LLM_MODEL     - 模型名，如 gpt-4o-mini / glm-4 / deepseek-chat
 """
-import os
 import json
+import os
+
 import requests
 
 BASE_URL = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")

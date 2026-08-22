@@ -2,21 +2,23 @@
 沙箱子进程运行脚本（由 sandbox.py 调用，不要手动运行）。
 参数：argv[1]=df.pkl  argv[2]=out.json  argv[3]=code.py
 """
-import sys
-import io
-import json
 import base64
 import contextlib
+import io
+import json
+import sys
 
-import pandas as pd
-import numpy as np
 import matplotlib
+import numpy as np
+import pandas as pd
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
 
 # 安全策略与主进程 sandbox.py 共享（单一事实来源）
-from sandbox import ALLOWED_IMPORTS as ALLOWED, SAFE_BUILTINS as SAFE
+from sandbox import ALLOWED_IMPORTS as ALLOWED
+from sandbox import SAFE_BUILTINS as SAFE
 
 # 中文字体：优先 Windows 常见字体，找不到再退回默认（避免图内中文乱码）
 _CJK_FONTS = ["Microsoft YaHei", "SimHei", "SimSun", "Noto Sans CJK SC", "PingFang SC"]

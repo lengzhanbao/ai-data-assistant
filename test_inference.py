@@ -3,8 +3,11 @@ import numpy as np
 import pandas as pd
 
 from inference_engine import (
-    bayes_alternative, power_analysis, robustness_check,
-    regression_diagnostics, causal_hints,
+    bayes_alternative,
+    causal_hints,
+    power_analysis,
+    regression_diagnostics,
+    robustness_check,
 )
 
 rng = np.random.RandomState(42)
