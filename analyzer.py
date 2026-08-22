@@ -124,7 +124,7 @@ def _run(df, question: str, system_prompt: str, max_retry: int, context: str = "
     guard_result = stats_guard.full_guard_check(df, question)
     guard_prompt = stats_guard.guard_to_prompt(guard_result)
     schema = describe_df(df)
-    full_context = (context + "\n\n" if context else "")
+    (context + "\n\n" if context else "")
     user_msg = f"数据集结构：\n{schema}\n\n用户问题：{question}\n{guard_prompt}\n\n请只输出 Python 代码。"
     try:
         code = _strip_fences(chat(system_prompt, user_msg))
@@ -176,7 +176,7 @@ def _run(df, question: str, system_prompt: str, max_retry: int, context: str = "
     if not res.get("ok"):
         detail = res.get("error", "")
         # 提取最后一行有意义的错误信息
-        lines = [l.strip() for l in str(detail).split("\n") if l.strip()]
+        lines = [ln.strip() for ln in str(detail).split("\n") if ln.strip()]
         short_err = lines[-1][:200] if lines else "未知错误"
         res["error"] = f"代码执行失败：{short_err}"
     return res

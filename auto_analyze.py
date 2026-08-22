@@ -15,7 +15,7 @@ def auto_profile(df):
     # 1. 数据概览
     overview = {
         "type": "overview",
-        "title": f"数据概览",
+        "title": "数据概览",
         "detail": f"共 {len(df)} 行 × {len(df.columns)} 列"
                   f"（数值列 {len(numeric_cols)}，分类列 {len(cat_cols)}）",
         "severity": "info",
@@ -50,7 +50,7 @@ def auto_profile(df):
         if len(s) < 5:
             continue
         skew = float(s.skew())
-        kurt = float(s.kurtosis())
+        float(s.kurtosis())
         desc = f"mean={s.mean():.2f}, median={s.median():.2f}, std={s.std():.2f}"
         if abs(skew) > 2:
             desc += f", 严重偏斜(skew={skew:.2f})"

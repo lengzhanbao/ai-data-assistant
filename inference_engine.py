@@ -2,7 +2,6 @@
 推断引擎（inference_engine）：贝叶斯替代、统计功效、稳健性检查、回归诊断、因果推断入门。
 Phase 2 核心模块 —— 从"跑一个检验"升级到"完整推断报告"。
 """
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -16,7 +15,6 @@ except ImportError:
 
 try:
     from statsmodels.stats.power import TTestIndPower, FTestAnovaPower
-    from statsmodels.stats.multicomp import pairwise_tukeyhsd
     import statsmodels.api as sm_api
     from statsmodels.stats.outliers_influence import variance_inflation_factor
     from statsmodels.stats.diagnostic import het_breuschpagan

@@ -4,6 +4,8 @@ import sys as _sys
 
 import analyzer
 from app import app
+import importlib
+from io import BytesIO
 
 # 测试脚本复用同一 Flask app；启动前清理上次进程残留的内存状态。
 app.config["sessions"].clear()
@@ -90,7 +92,6 @@ assert r2.status_code in (400, 404), r2.status_code
 print("SECURITY chart path-traversal blocked: OK")
 
 # 边界：上传损坏文件应被 422 拒绝
-from io import BytesIO
 bad = client.post("/upload", data={"file": (BytesIO(b"not a valid xlsx file"), "bad.xlsx")}, content_type="multipart/form-data")
 assert bad.status_code == 422, bad.status_code
 assert bad.get_json()["code"] == "INVALID_FILE", bad.get_json()
@@ -118,7 +119,6 @@ assert bad_type.status_code == 400, bad_type.status_code
 print("SECURITY ask question type validation: OK")
 
 # 生产环境缺 FLASK_SECRET 应启动失败
-import importlib
 _sys.modules.pop("app", None)
 os.environ["FLASK_ENV"] = "production"
 os.environ.pop("FLASK_SECRET", None)

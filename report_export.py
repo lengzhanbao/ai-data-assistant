@@ -2,7 +2,6 @@
 报告导出模块：可复现Jupyter Notebook + APA格式Results段落生成。
 Phase 3 核心 —— 分析结果可直接进论文。
 """
-import base64
 import html as html_mod
 import json
 import os
@@ -101,8 +100,8 @@ def export_notebook(session_state, dataset_info, history_items,
         "import pandas as pd\n"
         "import numpy as np\n"
         "import matplotlib.pyplot as plt\n\n"
-        f"# Load your data\ndf = pd.read_csv('your_data.csv')  # TODO: update path\n"
-        f"print(df.shape)\ndf.head()"
+        "# Load your data\ndf = pd.read_csv('your_data.csv')  # TODO: update path\n"
+        "print(df.shape)\ndf.head()"
     )
 
     for i, item in enumerate(history_items, 1):
@@ -114,7 +113,7 @@ def export_notebook(session_state, dataset_info, history_items,
         if code:
             code_cell(code)
         if result_text:
-            escaped = result_text.replace("\\", "\\\\").replace('"', '\\"')
+            result_text.replace("\\", "\\\\").replace('"', '\\"')
             md_cell(f"**Result:** {result_text[:2000]}")
 
     nb_content = {
@@ -154,7 +153,7 @@ def export_html_report(history_items, dataset_name="Unknown Dataset"):
         ".methodology{margin-top:8px;padding:8px;background:#eef;color:#226;font-size:13px;}",
         ".meta{color:#666;font-size:12px;}",
         "</style></head><body>",
-        f"<h1>Data Analysis Report</h1>",
+        "<h1>Data Analysis Report</h1>",
         f"<p class='meta'>Generated: {time.strftime('%Y-%m-%d %H:%M')} | Dataset: {dataset_name}</p>",
     ]
 

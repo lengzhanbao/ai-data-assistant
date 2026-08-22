@@ -373,7 +373,7 @@ def _build_context(state, current_q):
     parts = []
     for item in recent:
         q = item.get("question", "")
-        r = str(item.get("result", ""))[:200]
+        str(item.get("result", ""))[:200]
         parts.append(f"Q: {q}")
     parts.append(f"Current: {current_q}")
     return "\n".join(parts)
@@ -588,7 +588,7 @@ def export_apa(result_id):
 @app.route("/templates")
 def list_templates():
     sid = _session_id()
-    state = _session_state(sid)
+    _session_state(sid)
     did, info = _active_dataset(sid)
     if info is None:
         return jsonify({"templates": []})

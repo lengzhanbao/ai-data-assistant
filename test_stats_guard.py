@@ -30,32 +30,32 @@ def t(name, condition):
 rng = np.random.RandomState(42)
 normal_data = pd.Series(rng.normal(50, 10, 100))
 r = check_normality(normal_data)
-t("normal_data: normal=True", r["normal"] == True)
+t("normal_data: normal=True", r["normal"])
 t("normal_data: has test name", r["test"] is not None)
 t("normal_data: p > 0.05", r["p_value"] > 0.05)
 
 skewed = pd.Series(rng.exponential(2, 200))
 r2 = check_normality(skewed)
-t("skewed: normal=False", r2["normal"] == False)
+t("skewed: normal=False", not r2["normal"])
 
 binary = pd.Series([0, 1] * 50)
 r3 = check_normality(binary)
-t("binary: normal=False", r3["normal"] == False)
+t("binary: normal=False", not r3["normal"])
 
 # ── 边界case：样本量 ──
 
 tiny = pd.Series([1.0, 2.0])
 r4 = check_normality(tiny)
-t("n=2: normal=False", r4["normal"] == False)
+t("n=2: normal=False", not r4["normal"])
 t("n=2: note mentions n", "n=2" in r4.get("note", ""))
 
 single = pd.Series([5.0])
 r5 = check_normality(single)
-t("n=1: normal=False", r5["normal"] == False)
+t("n=1: normal=False", not r5["normal"])
 
 empty = pd.Series([], dtype=float)
 r6 = check_normality(empty)
-t("empty: normal=False", r6["normal"] == False)
+t("empty: normal=False", not r6["normal"])
 
 large = pd.Series(rng.normal(0, 1, 6000))
 r7 = check_normality(large)
@@ -83,7 +83,7 @@ t("with_inf: handles gracefully", isinstance(r11.get("normal"), bool))
 g1 = rng.normal(10, 5, 50)
 g2 = rng.normal(10, 5, 50)
 r12 = check_variance_equality(g1, g2)
-t("equal_var: var_equal=True", r12.get("var_equal") == True)
+t("equal_var: var_equal=True", r12.get("var_equal"))
 
 g3 = np.random.RandomState(123).normal(10, 30, 50)
 r13 = check_variance_equality(g1, g3)
@@ -91,7 +91,7 @@ t("unequal_var: detects difference", isinstance(r13.get("var_equal"), bool))
 
 zero_var = np.array([5.0] * 50)
 r14 = check_variance_equality(g1[:50], zero_var)
-t("zero_var_group: var_equal=False", r14.get("var_equal") == False)
+t("zero_var_group: var_equal=False", not r14.get("var_equal"))
 t("zero_var_group: mentions zero variance", "zero variance" in (r14.get("note") or ""))
 
 r15 = check_variance_equality(np.array([]), np.array([]))
@@ -105,14 +105,14 @@ t("multi_groups: runs Levene", r16.get("test") == "Levene")
 # ── 样本量检查 ──
 
 r17 = check_sample_size(25, "t_test")
-t("n=25_t_test: not adequate", r17["adequate"] == False)
+t("n=25_t_test: not adequate", not r17["adequate"])
 t("n=25_t_test: recommends 30", r17["minimum_recommended"] == 30)
 
 r18 = check_sample_size(100, "t_test")
-t("n=100_t_test: adequate", r18["adequate"] == True)
+t("n=100_t_test: adequate", r18["adequate"])
 
 r19 = check_sample_size(15, "anova")
-t("n=15_anova: adequate (>=15)", r19["adequate"] == True)
+t("n=15_anova: adequate (>=15)", r19["adequate"])
 
 
 # ── 变量类型检测 ──

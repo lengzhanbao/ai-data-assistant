@@ -24,4 +24,4 @@ charts/
 .idea/
 .DS_Store
 Thumbs.db
-
+_fix*.py

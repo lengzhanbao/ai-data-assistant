@@ -1,5 +1,4 @@
 """Mock LLM for demo mode - works without API key."""
-import numpy as np
 
 
 def chat(system: str, user: str, temperature: float = 0.2, timeout: int = 60) -> str:
