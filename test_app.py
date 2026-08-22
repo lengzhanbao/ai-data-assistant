@@ -1,4 +1,4 @@
-﻿"""端到端测试：用假 LLM 验证 /upload -> /ask -> /insights 完整 Web 链路（无需真实 API key）。"""
+"""端到端测试：用假 LLM 验证 /upload -> /ask -> /insights 完整 Web 链路（无需真实 API key）。"""
 import os
 import sys as _sys
 

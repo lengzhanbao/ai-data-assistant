@@ -19,7 +19,7 @@ jobs:
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install --prefer-binary -r requirements.txt
       - name: Compile check
         run: |
           python -m py_compile app.py analyzer.py sandbox.py runner.py llm_client.py stats_guard.py inference_engine.py report_export.py analysis_templates.py
