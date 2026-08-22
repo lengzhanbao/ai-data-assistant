@@ -125,7 +125,7 @@ _SAFE_ATTRIBUTE_NAMES = {
     "set_xticks", "set_yticks", "set_xticklabels", "set_yticklabels",
     "tick_params", "autoscale", "margins", "axis", "invert_xaxis", "invert_yaxis",
     "get_position", "set_position", "add_subplot", "add_axes", "twinx", "twiny",
-    "savefig", "show", "style", "use", "rcParams", "cm", "colors", "colormaps",
+    "show", "style", "use", "rcParams", "cm", "colors", "colormaps",
     "patches", "ticker", "dates", "font_manager", "pylab",
     # sklearn basic
     "fit", "predict", "transform", "fit_transform", "score", "inverse_transform",
